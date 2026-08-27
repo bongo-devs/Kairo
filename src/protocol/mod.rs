@@ -8,11 +8,13 @@
 //! field, meaning leave unchanged, from a `null` one, meaning clear.
 
 pub mod filters;
+pub mod info;
 pub mod load_result;
 pub mod omissible;
 pub mod track;
 
 pub use filters::Filters;
+pub use info::{Git, Info, Plugin, Version};
 pub use load_result::{Exception, LoadResult, Playlist, PlaylistInfo, Severity};
 pub use omissible::Omissible;
 pub use track::{Track, TrackInfo};
