@@ -1,6 +1,7 @@
 pub mod config;
 pub mod protocol;
 pub mod sponsorblock;
+pub mod telemetry;
 
 use std::sync::LazyLock;
 
