@@ -3,6 +3,7 @@ pub mod node;
 pub mod protocol;
 pub mod rest;
 pub mod routeplanner;
+pub mod session;
 pub mod sponsorblock;
 pub mod telemetry;
 
