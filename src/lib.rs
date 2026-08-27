@@ -1,3 +1,4 @@
+pub mod protocol;
 pub mod sponsorblock;
 
 use mimalloc::MiMalloc;
