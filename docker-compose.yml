@@ -1,0 +1,22 @@
+services:
+  kairo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: ghcr.io/bongo-devs/kairo:latest
+    container_name: kairo
+    restart: unless-stopped
+    ports:
+      - "2333:2333"
+    volumes:
+      - ./application.yml:/app/application.yml:ro
+      - ./logs:/app/logs
+    environment:
+      - RUST_LOG=info
+      - KAIRO_CONFIG=/app/application.yml
+      # Return freed pages to the OS after 10 ms idle. Without it mimalloc keeps every
+      # decode and segment peak resident, so RSS sticks at the highest point ever reached.
+      - MIMALLOC_PURGE_DELAY=10
+      # Commit arena pages on demand rather than up front, worth about 12 MB at idle.
+      - MIMALLOC_ARENA_EAGER_COMMIT=0
