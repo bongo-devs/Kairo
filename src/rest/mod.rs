@@ -2,6 +2,7 @@
 
 pub mod error;
 pub mod info;
+pub mod lyrics;
 pub mod players;
 pub mod routeplanner;
 pub mod sessions;
