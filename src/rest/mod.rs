@@ -2,4 +2,5 @@
 
 pub mod error;
 pub mod info;
+pub mod players;
 pub mod track_loading;
