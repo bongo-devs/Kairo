@@ -2,6 +2,7 @@ pub mod config;
 pub mod node;
 pub mod protocol;
 pub mod rest;
+pub mod routeplanner;
 pub mod sponsorblock;
 pub mod telemetry;
 
