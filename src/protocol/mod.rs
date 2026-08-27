@@ -14,6 +14,7 @@ pub mod lyrics;
 pub mod omissible;
 pub mod player;
 pub mod routeplanner;
+pub mod search;
 pub mod track;
 
 pub use filters::Filters;
@@ -25,4 +26,5 @@ pub use player::{
     CrossfadeCurve, CrossfadeSettings, Player, PlayerState, PlayerUpdate, PlayerUpdateTrack,
     VoiceState,
 };
+pub use search::{SearchResult, SearchText};
 pub use track::{Track, TrackInfo};
