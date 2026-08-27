@@ -1,0 +1,283 @@
+server: # REST + WebSocket listener
+  address: 0.0.0.0
+  port: 2333
+  http2:
+    enabled: false # h2c alongside HTTP/1.1; no TLS, so clients need prior knowledge
+lavalink:
+  server:
+    password: "youshallnotpass"
+    bufferDurationMs: 400 # accepted for client compatibility, unused
+    nonAllocatingFrameBuffer: false # accepted for client compatibility, unused
+    frameBufferDurationMs: 5000
+    opusEncodingQuality: 10
+    opusBitrate: 96000 # bits/sec, 500..512000; 96k fits Discord's unboosted cap
+    resamplingQuality: LOW # LOW | MEDIUM | HIGH
+    trackStuckThresholdMs: 10000
+    useSeekGhosting: true
+    playerUpdateInterval: 5 # seconds between playerUpdate messages
+    # Outbound HTTP proxy for every source and track request.
+    # httpConfig:
+    #   proxyHost: "localhost"
+    #   proxyPort: 3128
+    #   proxyUser: ""
+    #   proxyPassword: ""
+    timeouts:
+      connectTimeoutMs: 3000 # TCP+TLS connect timeout; 0 = OS default
+    # Outbound IP rotation. Binds each request to an address from these CIDR blocks and
+    # rotates away from rate-limited ones. A bare address counts as a /32 or /128.
+    # ratelimit:
+    #   ipBlocks: ["1.0.0.0/8", "2001:db8::/64"]
+    #   excludedIps: []
+    #   strategy: RotateOnBan # RotateOnBan | LoadBalance | NanoSwitch | RotatingNanoSwitch
+    #   searchTriggersFail: true # a search 429 marks the address failing
+    #   retryLimit: -1 # retries per request; -1 = 10, 0 = unlimited
+    filters: # set to false to reject that filter on PATCH
+      volume: true
+      equalizer: true
+      karaoke: true
+      timescale: true
+      tremolo: true
+      vibrato: true
+      distortion: true
+      rotation: true
+      channelMix: true
+      lowPass: true
+logging:
+  level: info # trace | debug | info | warn | error
+  levels: # per-module overrides
+    kairo: info
+    voice: info
+    player: info
+    sources: info
+    youtube::sabr: info
+    symphonia_bundle_mp3: error # silences harmless VBR main_data_begin warnings
+  format: compact # compact | pretty | json
+  color: true
+  timestamps: true
+  showTarget: true # prefix lines with the module name
+  request: # REST request logging
+    enabled: true
+    includeClientInfo: true # append client=<remote address>
+    includeHeaders: false # authorization and cookie headers are redacted
+    includeQueryString: true
+    includePayload: true
+    maxPayloadLength: 10000 # bytes, longer payloads are truncated
+    beforeRequest: false # also log a line before the request runs
+  # Rolling file output. Console only when omitted.
+  # file:
+  #   path: ./logs/kairo.log
+  #   rotation: daily # daily | hourly | never
+sources:
+  # Most platform sources take an optional `proxy:` block that routes only that
+  # source's requests, overriding lavalink.server.httpConfig. Not supported by
+  # mixcloud, flowery, http and local.
+  #   proxy:
+  #     url: "http://host:3128" # or socks5://host:1080
+  #     username: ""
+  #     password: ""
+  http: true # generic HTTP URLs, matched after the platform sources
+  local: false
+  jiosaavn: # jiosaavn.com URLs + jssearch: / jsrec: / jsprev:
+    enabled: true
+    searchLimit: 10
+    recommendationsLimit: 10
+    playlistLoadLimit: 50
+    albumLoadLimit: 50
+    artistLoadLimit: 20 # top tracks per artist URL
+    # apiUrl: "http://localhost:3000/" # github.com/bongo-devs/jiosaavn-proxy-api, removes the proxy requirement
+    # proxy: # an Indian proxy for geo-restricted content, unless apiUrl is set
+    #   url: "http://indian-proxy:8080"
+    #   username: ""
+    #   password: ""
+    decryption: # DES decryption of media URLs
+      secretKey: "38346591" # override if JioSaavn rotates it
+      algorithm: "DES"
+      transformation: "DES/ECB/PKCS5Padding"
+  gaana: # gaana.com URLs + gnsearch:
+    # Plays its own audio over HLS. Also works as a sources.mirror provider.
+    enabled: false
+    streamQuality: "high"
+    searchLimit: 10
+    playlistLoadLimit: 50
+    albumLoadLimit: 50
+    artistLoadLimit: 20
+  deezer: # deezer.com URLs + dzsearch: / dzisrc: / dzrec: / dzprev:
+    # Plays its own audio. Metadata and dzprev: previews work bare; full playback
+    # needs masterDecryptionKey and an arl from keys-api, without which the source
+    # is not registered. Also works as a sources.mirror provider.
+    enabled: false
+    masterDecryptionKey: "" # the 16-byte public Blowfish key, checked by SHA-256
+    formats: ["MP3_128", "MP3_64"] # FLAC, MP3_320, MP3_256, MP3_128, MP3_64, AAC_64
+    proxy: # routes only Deezer's requests
+      url: "" # e.g. http://host:3128 or socks5://host:1080
+      username: ""
+      password: ""
+  pandora: # pandora.com URLs + pdsearch: / pdrec:
+    # Metadata only, plays through sources.mirror. Logs in anonymously.
+    enabled: false
+    searchLimit: 10
+    # csrfToken: "" # override the cookie normally fetched from www.pandora.com
+  spotify: # open.spotify.com URLs + spsearch: / sprec: / spprev:
+    # Metadata only, plays through sources.mirror. Uses the partner GraphQL API
+    # with a token taken from the embed page, so no client credentials.
+    enabled: false
+    # spDc: "" # sp_dc cookie for the higher-rate mobile token
+    playlistLoadLimit: 6 # pages of 100 tracks
+    albumLoadLimit: 6 # pages of 50 tracks
+  applemusic: # music.apple.com URLs + amsearch: / amprev:
+    # Metadata only, plays through sources.mirror. The MusicKit token is scraped
+    # from music.apple.com.
+    enabled: false
+    # mediaApiToken: "" # pin a MusicKit JWT instead of scraping one
+    countryCode: "US" # storefront; a country code in the URL wins
+    playlistLoadLimit: 6 # pages of 300 tracks
+    albumLoadLimit: 6 # pages of 300 tracks
+  amazonmusic: # music.amazon.* URLs + azsearch:
+    # Metadata only, plays through sources.mirror. Tokens are scraped per request
+    # and the storefront comes from the URL domain, defaulting to US.
+    enabled: false
+  audiomack: # audiomack.com URLs + amksearch:
+    # Plays its own audio.
+    enabled: false
+    searchLimit: 20
+    artistLimit: 100 # top tracks per artist page
+    consumerKey: "audiomack-web" # public web-client OAuth 1.0a pair
+    consumerSecret: "bd8a07e9f23fbe9d808646b730f89b8e"
+  bandcamp: # bandcamp.com track/album URLs + bcsearch:
+    # Plays its own audio from the bcbits.com CDN.
+    enabled: false
+    searchLimit: 10
+  tidal: # tidal.com URLs + tdsearch: / tdrec:
+    # Metadata only since its streams are DRM-gated, plays through sources.mirror.
+    # The public API token is scraped from the web bundle.
+    enabled: false
+    countryCode: "US" # storefront
+    playlistLoadLimit: 50 # clamped to 1..100
+    albumLoadLimit: 50 # clamped to 1..100
+    artistLoadLimit: 20 # top tracks, clamped to 1..10
+  qobuz: # qobuz.com URLs + qbsearch: / qbisrc: / qbrec:
+    # Plays its own audio on a premium account; a free one only gets a 30-second
+    # sample, so the track plays through sources.mirror instead. userToken is
+    # required (the catalog API has no anonymous access) and the source is not
+    # registered without it. appId and appSecret are scraped when left empty.
+    enabled: false
+    # userToken: "" # play.qobuz.com devtools -> Application -> Local Storage -> localuser -> token
+    # appId: ""
+    # appSecret: "" # only used for premium self-playback
+    searchLimit: 15
+    albumLoadLimit: 500
+    playlistLoadLimit: 1000
+    artistLoadLimit: 10 # top tracks per artist page
+  soundcloud: # soundcloud.com URLs + scsearch:
+    # Plays its own audio over HLS and progressive MP3. The client_id is
+    # discovered from soundcloud.com and rotated on a 401.
+    enabled: false
+    allowSearch: true
+    # clientId: "" # manual override, empty discovers one
+    # filterOutPreviewTracks: false # drop 30-second subscription previews
+  mixcloud: # mixcloud.com URLs + mcsearch:
+    # Plays its own audio, resolved through the GraphQL API.
+    enabled: false
+    searchLimit: 10
+  twitch: # twitch.tv live stream URLs
+    # Plays live HLS. The Client-ID and X-Device-ID are scraped at startup.
+    # Offline channels return NO_TRACK.
+    enabled: false
+  flowery: # ftts:// text-to-speech via flowery.pw
+    # e.g. ftts://Hello World?voice=Salli&speed=1.5
+    enabled: false
+    voice: "Salli"
+    translate: false # translate the text before synthesis
+    silence: 0 # ms of silence appended after speech, 0..10000
+    speed: 1.0 # 0.5..10.0
+    audioFormat: "mp3" # mp3, ogg_opus, ogg_vorbis, wav, flac, aac
+    enforceConfig: false # ignore per-request query-param overrides
+  youtube: # youtube.com / youtu.be / music.youtube.com URLs + ytsearch: / ytmsearch:
+    # Plays its own audio through InnerTube. Also works as a sources.mirror provider.
+    enabled: false
+    allowSearch: true
+    allowDirectVideoIds: true
+    allowDirectPlaylistIds: true
+    playlistPageCount: 6 # pages of 100 tracks
+    sabr: true # SABR audio on the WEB clients, needs remoteCipher; falls back to the range reader
+    # Ordered InnerTube clients per operation, case-insensitive. A client that cannot
+    # serve an operation is logged and skipped rather than force-enabled.
+    # ANDROID_VR, VISIONOS, ANDROID, ANDROID_MUSIC and IOS are pre-signed and play as
+    # they are. WEB, WEB_SAFARI, WEB_EMBEDDED, MWEB, WEB_PARENT_TOOLS, WEB_CREATOR,
+    # TVHTML5_SIMPLY and TVHTML5_CAST only play with remoteCipher configured. TVHTML5
+    # and TV_DOWN need oauth or cookies and load no metadata. WEB_PARENT_TOOLS and
+    # WEB_CREATOR need cookies. WEB_SAFARI is WEB with a Safari user-agent.
+    searchClients: ["MUSIC", "ANDROID_VR", "WEB", "WEB_SAFARI"]
+    videoClients: ["ANDROID_VR", "WEB", "WEB_SAFARI", "WEB_EMBEDDED"]
+    playlistClients: ["ANDROID_VR", "WEB", "WEB_SAFARI"]
+    playbackClients: ["ANDROID_VR", "VISIONOS", "WEB", "WEB_SAFARI", "WEB_EMBEDDED"]
+    oauth: # device-code flow for TVHTML5, ignored once sources.keysApi is enabled
+      enabled: false
+      # refreshTokens: # burner-account tokens, rotated round-robin per request
+      #   - "refresh token #1"
+      #   - "refresh token #2"
+    # Cookies come from keys-api's youtube provider and nowhere else. They apply to
+    # playback resolution only, so search and playlists stay anonymous. Without them
+    # the login-walled clients are dropped.
+    remoteCipher: # signature-cipher service, required to play the cipher clients
+      enabled: false
+      url: "https://your-cipher-service" # exposes /get_sts, /resolve_url and /get_po_token
+      # password: "" # optional Authorization value
+      # userAgent: "" # optional UA for cipher requests
+  # Shared credential store. Sources take credentials from here instead of this file:
+  # one key per provider is in flight at a time and is reported back before the next
+  # is taken. Required by deezer, optional for youtube where it replaces
+  # oauth.refreshTokens and is the only source of a cookie jar.
+  keysApi:
+    enabled: false
+    url: "" # e.g. "https://keys.example.com"
+    token: "" # sent as Authorization: Bearer <token>
+    timeoutSeconds: 10 # covers both the fetch and the status report
+    expirySkewSeconds: 60 # re-fetch this far before a token expires
+    # Operations one key serves before it is reported working and replaced. A failed
+    # operation always takes the next key immediately. 0 and 1 both hand the key back
+    # after every operation.
+    rotationThreshold: 1
+    # providers: # per-source provider slug overrides
+    #   youtube: "youtube-burners"
+    # proxy: # routes only the keys-api calls
+    #   url: "http://host:3128"
+    #   username: ""
+    #   password: ""
+  mirror: # search templates the metadata-only sources play through
+    # Tried in order until one returns a playable track. %QUERY% is title + artist,
+    # %ISRC% entries are skipped for tracks without an ISRC. The search source has
+    # to be enabled.
+    providers:
+      # - "dzisrc:%ISRC%" # exact ISRC match through Deezer
+      - "jssearch:%QUERY%"
+      # - "dzsearch:%QUERY%"
+      # - "ytsearch:\"%ISRC%\""
+      # - "ytsearch:%QUERY%"
+
+# Lyrics providers. Every enabled one is queried in parallel and the first synced
+# result wins, falling back to plain text. Disabled unmounts the lyrics endpoints.
+lyrics:
+  enabled: false
+  lrclib: false # synced + plain, no auth
+  musixmatch: false # synced + plain, anonymous token
+  genius: false # plain only
+  deezer: false # synced word-by-word, anonymous JWT
+  netease: false # synced + plain
+  youtubemusic: false # synced + plain
+  deezerProxy: # only for the Deezer lyrics provider
+    url: "" # e.g. http://host:3128 or socks5://host:1080
+    username: ""
+    password: ""
+metrics:
+  prometheus:
+    enabled: false
+    endpoint: /metrics
+# WARN and ERROR logs become Sentry events and INFO becomes a breadcrumb. The
+# release is tagged with the build's git commit. Empty dsn disables Sentry.
+sentry:
+  dsn: ""
+  environment: "" # e.g. production or staging
+  # tags: # attached to every event
+  #   some_key: some_value
+  #   another_key: another_value
