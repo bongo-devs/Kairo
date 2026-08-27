@@ -11,6 +11,7 @@ pub mod filters;
 pub mod info;
 pub mod load_result;
 pub mod lyrics;
+pub mod message;
 pub mod omissible;
 pub mod player;
 pub mod routeplanner;
@@ -23,6 +24,7 @@ pub use filters::Filters;
 pub use info::{Git, Info, Plugin, Version};
 pub use load_result::{Exception, LoadResult, Playlist, PlaylistInfo, Severity};
 pub use lyrics::{Line, Lyrics};
+pub use message::{EmittedEvent, Message, TrackEndReason};
 pub use omissible::Omissible;
 pub use player::{
     CrossfadeCurve, CrossfadeSettings, Player, PlayerState, PlayerUpdate, PlayerUpdateTrack,
