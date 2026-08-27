@@ -4,4 +4,5 @@ pub mod error;
 pub mod info;
 pub mod players;
 pub mod sessions;
+pub mod sponsorblock;
 pub mod track_loading;
