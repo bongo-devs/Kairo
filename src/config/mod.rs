@@ -1,5 +1,6 @@
 //! Configuration parsed from `application.yml` at startup.
 
+mod crossfade;
 mod filters;
 mod lavalink;
 mod logging;
@@ -8,6 +9,7 @@ mod metrics;
 mod sentry;
 mod server;
 
+pub use crossfade::{CrossfadeConfig, CrossfadeCurve};
 pub use filters::FiltersToggleConfig;
 pub use lavalink::{
     HttpConfig, LavalinkConfig, LavalinkServerConfig, RatelimitConfig, RatelimitStrategy,
