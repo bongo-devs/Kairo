@@ -8,5 +8,7 @@
 //! field, meaning leave unchanged, from a `null` one, meaning clear.
 
 pub mod omissible;
+pub mod track;
 
 pub use omissible::Omissible;
+pub use track::{Track, TrackInfo};
