@@ -3,6 +3,7 @@
 mod filters;
 mod lavalink;
 mod logging;
+mod sentry;
 mod server;
 
 pub use filters::FiltersToggleConfig;
@@ -11,4 +12,5 @@ pub use lavalink::{
     ResamplingQuality,
 };
 pub use logging::{LogFileConfig, LogFormat, LogRotation, LoggingConfig, RequestLoggingConfig};
+pub use sentry::SentryConfig;
 pub use server::{Http2Config, ServerConfig};
