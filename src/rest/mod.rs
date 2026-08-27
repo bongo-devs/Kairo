@@ -10,3 +10,4 @@ pub mod routeplanner;
 pub mod sessions;
 pub mod sponsorblock;
 pub mod track_loading;
+pub mod ws;
