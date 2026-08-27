@@ -1,0 +1,21 @@
+# Build artifacts, never ship the host target dir into the build context.
+/target
+**/target
+
+# Local clones of the git dependencies. Cargo fetches its own copies.
+/crates
+
+# Local runtime state.
+/logs
+application.yml
+
+# Editor and tooling.
+.vscode/
+.idea/
+
+# Docker metadata, which does not affect the build output.
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# .git is deliberately not listed: build.rs reads it to stamp the commit into GET /v4/info.
