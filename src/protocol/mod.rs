@@ -16,6 +16,7 @@ pub mod player;
 pub mod routeplanner;
 pub mod search;
 pub mod session;
+pub mod stats;
 pub mod track;
 
 pub use filters::Filters;
@@ -29,4 +30,5 @@ pub use player::{
 };
 pub use search::{SearchResult, SearchText};
 pub use session::{Session, SessionUpdate};
+pub use stats::{Cpu, FrameStats, Memory, Stats};
 pub use track::{Track, TrackInfo};
