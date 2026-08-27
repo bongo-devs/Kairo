@@ -1,3 +1,5 @@
+pub mod sponsorblock;
+
 use mimalloc::MiMalloc;
 
 #[global_allocator]
