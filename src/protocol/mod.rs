@@ -15,6 +15,7 @@ pub mod omissible;
 pub mod player;
 pub mod routeplanner;
 pub mod search;
+pub mod session;
 pub mod track;
 
 pub use filters::Filters;
@@ -27,4 +28,5 @@ pub use player::{
     VoiceState,
 };
 pub use search::{SearchResult, SearchText};
+pub use session::{Session, SessionUpdate};
 pub use track::{Track, TrackInfo};
