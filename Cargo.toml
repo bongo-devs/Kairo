@@ -1,0 +1,37 @@
+[package]
+name = "kairo"
+version = "4.1.0"
+edition = "2021"
+license = "MIT"
+description = "Lavalink v4 compatible audio node: REST and WebSocket control plane over the player and voice crates."
+
+[dependencies]
+axum = { version = "0.8", features = ["ws", "http2"] }
+bytes = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+futures-util = "0.3"
+hyper = { version = "1", features = ["server", "http1", "http2"] }
+hyper-util = { version = "0.1", features = ["server-auto", "tokio"] }
+libc = "0.2"
+lyrics = { git = "https://github.com/bongo-devs/lyrics" }
+mimalloc = "0.1.48"
+perf_monitor = "0.2.1"
+player = { git = "https://github.com/bongo-devs/player" }
+rand = "0.8"
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+sentry = { version = "0.48", default-features = false, features = ["backtrace", "contexts", "panic", "reqwest", "rustls", "tracing"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+sources = { git = "https://github.com/bongo-devs/sources" }
+tokio = { version = "1.52", features = ["tracing", "macros", "signal", "rt-multi-thread"] }
+tower-service = "0.3"
+tracing = "0.1"
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "chrono"] }
+voice = { git = "https://github.com/bongo-devs/voice" }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
