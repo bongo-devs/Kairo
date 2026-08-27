@@ -13,6 +13,7 @@ pub mod load_result;
 pub mod lyrics;
 pub mod omissible;
 pub mod player;
+pub mod routeplanner;
 pub mod track;
 
 pub use filters::Filters;
