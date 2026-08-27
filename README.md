@@ -64,7 +64,12 @@ Audio decoding, source resolution, lyrics and the voice transport live in separa
 which Cargo fetches over git. This repository is the node around them: the REST API, the WebSocket,
 the sessions and the players.
 
+## Credits
+
+The API, the WebSocket events and the track encoding are those of
+[Lavalink](https://github.com/lavalink-devs/Lavalink) by Freya Arbjerg and its contributors, which
+defines the v4 protocol this node implements and which every compatible client was written against.
+
 ## License
 
-MIT. See [LICENSE](LICENSE), which also carries the notice for the Lavalink protocol this node
-implements.
+MIT. See [LICENSE](LICENSE), which also carries the Lavalink copyright notice.
