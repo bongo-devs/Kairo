@@ -10,7 +10,7 @@ use crate::protocol::stats::Stats;
 // The audio engine crate version, which is not readable from here at compile time.
 const PLAYER_VERSION: &str = "0.1.0";
 
-/// `GET /version`, the plain-text server version. No auth required.
+/// `GET /version`, the plain-text server version.
 pub async fn version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
