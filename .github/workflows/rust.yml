@@ -19,11 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: dtolnay/rust-toolchain@stable
-
-      # player, sources, lyrics and voice are private repositories. The job's own GITHUB_TOKEN only
-      # reaches this one, so the fetch needs a token with read access to all four.
       - name: Authenticate for the private dependencies
         env:
           TOKEN: ${{ secrets.CARGO_GIT_TOKEN }}
