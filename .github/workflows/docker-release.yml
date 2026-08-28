@@ -19,6 +19,8 @@ env:
   CMAKE_POLICY_VERSION_MINIMUM: "3.5"
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: sccache
+  # The dependency fetch goes through the git CLI, so the credentials configured below apply to it.
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
 jobs:
   build-linux:
     name: Linux ${{ matrix.arch }}
@@ -41,6 +43,17 @@ jobs:
           targets: ${{ matrix.target }}
 
       - uses: mozilla-actions/sccache-action@v0.0.9
+
+      - name: Authenticate for the private dependencies
+        env:
+          TOKEN: ${{ secrets.CARGO_GIT_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::CARGO_GIT_TOKEN is unset, so cargo cannot fetch the git dependencies"
+            exit 1
+          fi
+          git config --global url."https://x-access-token:$TOKEN@github.com/".insteadOf \
+            https://github.com/
 
       - uses: actions/cache@v4
         with:

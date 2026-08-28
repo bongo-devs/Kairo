@@ -2,21 +2,56 @@ name: Rust
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  LIBOPUS_STATIC: "1"
+  OPUS_STATIC: "1"
+  AUDIOPUS_STATIC: "1"
+  CMAKE_POLICY_VERSION_MINIMUM: "3.5"
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # player, sources, lyrics and voice are private repositories. The job's own GITHUB_TOKEN only
+      # reaches this one, so the fetch needs a token with read access to all four.
+      - name: Authenticate for the private dependencies
+        env:
+          TOKEN: ${{ secrets.CARGO_GIT_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::CARGO_GIT_TOKEN is unset, so cargo cannot fetch the git dependencies"
+            exit 1
+          fi
+          git config --global url."https://x-access-token:$TOKEN@github.com/".insteadOf \
+            https://github.com/
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake pkg-config libclang-dev clang build-essential perl
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-
+
+      - name: Build
+        run: cargo build --locked --verbose
+
+      - name: Test
+        run: cargo test --locked --verbose
