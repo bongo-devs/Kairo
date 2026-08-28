@@ -7,6 +7,17 @@
 Standalone Discord audio sending node, written in Rust. Drop-in Lavalink v4 compatible: the same
 REST API, the same WebSocket events, the same encoded track format.
 
+## Why this exists
+
+Kairo started as a hobby project. We wanted more control over the audio node we use, so we decided
+to build our own.
+
+We have a lot of respect for Lavalink and the people behind it. The protocol and ecosystem it built
+gave us a solid foundation to work from. Without Lavalink, Kairo probably wouldn't exist.
+
+Kairo isn't here to replace Lavalink. It's simply our own take on the problem, built because we
+wanted to learn, experiment, and make something of our own.
+
 ## Running
 
 Docker is the supported way to run it.
