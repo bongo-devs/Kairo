@@ -58,10 +58,10 @@ require the configured password in the `Authorization` header.
 
 ### Companion services
 
-- [yt-cipher](https://github.com/bongo-devs/yt-cipher) solves the signature cipher and mints the
+- yt-cipher, <https://github.com/bongo-devs/yt-cipher>, solves the signature cipher and mints the
   poTokens SABR playback needs. Configured under `sources.youtube.remoteCipher`. Use this fork
   rather than the upstream project, which exposes different endpoint names.
-- [keys-api](https://github.com/bongo-devs/keys-api) is a shared credential store for the Deezer
+- keys-api, <https://github.com/bongo-devs/keys-api>, is a shared credential store for the Deezer
   `arl`, YouTube OAuth tokens and cookies. Configured under `sources.keysApi`, and sources take
   their credentials from there instead of the config file.
 
