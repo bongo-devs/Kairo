@@ -273,11 +273,3 @@ metrics:
   prometheus:
     enabled: false
     endpoint: /metrics
-# WARN and ERROR logs become Sentry events and INFO becomes a breadcrumb. The
-# release is tagged with the build's git commit. Empty dsn disables Sentry.
-sentry:
-  dsn: ""
-  environment: "" # e.g. production or staging
-  # tags: # attached to every event
-  #   some_key: some_value
-  #   another_key: another_value

@@ -12,7 +12,7 @@ pub mod rest;
 pub mod routeplanner;
 pub mod session;
 pub mod sponsorblock;
-pub mod telemetry;
+pub mod utils;
 
 use std::sync::LazyLock;
 

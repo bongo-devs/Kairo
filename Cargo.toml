@@ -13,13 +13,13 @@ futures-util = "0.3"
 hyper = { version = "1", features = ["server", "http1", "http2"] }
 hyper-util = { version = "0.1", features = ["server-auto", "tokio"] }
 libc = "0.2"
+libmimalloc-sys = { version = "0.1.44", features = ["extended"] }
 lyrics = { git = "https://github.com/bongo-devs/lyrics" }
 mimalloc = "0.1.48"
 perf_monitor = "0.2.1"
 player = { git = "https://github.com/bongo-devs/player" }
 rand = "0.8"
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
-sentry = { version = "0.48", default-features = false, features = ["backtrace", "contexts", "panic", "reqwest", "rustls", "tracing"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"

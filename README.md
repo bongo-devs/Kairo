@@ -27,6 +27,14 @@ docker compose up -d
 The node serves port 2333 and reads `/app/application.yml`. Set `KAIRO_CONFIG` to read it from
 somewhere else.
 
+Running the binary directly instead of a container skips the allocator tuning the images set, which
+costs around 12 MB of resident memory at idle and keeps freed pages from going back to the OS. Pass
+it yourself:
+
+```sh
+MIMALLOC_PURGE_DELAY=10 MIMALLOC_ARENA_EAGER_COMMIT=0 ./kairo
+```
+
 ## Configuration
 
 Every key is documented inline in [`application.yml.example`](application.yml.example). The blocks:
@@ -36,7 +44,7 @@ Every key is documented inline in [`application.yml.example`](application.yml.ex
   resolves metadata plays through `sources.mirror`.
 - `lyrics`: the providers to query. Disabled leaves the lyrics endpoints unmounted.
 - `logging`: level, per-module overrides, format, and optional rolling file output.
-- `metrics.prometheus`, `sentry`: both off until configured.
+- `metrics.prometheus`: off until configured.
 
 Every block is optional and falls back to its own defaults. All endpoints except the Prometheus one
 require the configured password in the `Authorization` header.

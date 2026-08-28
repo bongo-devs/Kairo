@@ -27,9 +27,8 @@ async fn main() -> ExitCode {
 
     LazyLock::force(&CONFIG);
 
-    // Both guards flush what they buffered when dropped, so they are held for all of `main`.
-    let _sentry = kairo::telemetry::init_sentry(&CONFIG.sentry);
-    let _logging = kairo::telemetry::init(&CONFIG.logging, CONFIG.sentry.is_enabled());
+    // The guard flushes what the file sink buffered when dropped, so it is held for all of `main`.
+    let _logging = kairo::utils::init(&CONFIG.logging);
 
     let bind = format!("{}:{}", CONFIG.server.address, CONFIG.server.port);
     let http2 = CONFIG.server.http2.enabled;

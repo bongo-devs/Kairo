@@ -6,7 +6,6 @@ mod lavalink;
 mod logging;
 mod lyrics;
 mod metrics;
-mod sentry;
 mod server;
 
 pub use ::sources::SourcesConfig;
@@ -19,7 +18,6 @@ pub use lavalink::{
 pub use logging::{LogFileConfig, LogFormat, LogRotation, LoggingConfig, RequestLoggingConfig};
 pub use lyrics::LyricsServerConfig;
 pub use metrics::{MetricsConfig, PrometheusConfig};
-pub use sentry::SentryConfig;
 pub use server::{Http2Config, ServerConfig};
 
 use serde::Deserialize;
@@ -44,8 +42,6 @@ pub struct Config {
     pub lyrics: LyricsServerConfig,
     /// Prometheus metrics, `metrics.*`.
     pub metrics: MetricsConfig,
-    /// Error tracking, `sentry.*`.
-    pub sentry: SentryConfig,
 }
 
 impl Config {

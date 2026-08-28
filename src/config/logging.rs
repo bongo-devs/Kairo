@@ -1,4 +1,4 @@
-//! `logging.*`, the log output settings, consumed by [`crate::telemetry`].
+//! `logging.*`, the log output settings, consumed by [`crate::utils`].
 
 use std::collections::HashMap;
 

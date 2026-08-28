@@ -19,6 +19,10 @@ use crate::session::{SocketContext, SocketServer};
 const STATS_INTERVAL_SECS: u64 = 60;
 // How often the player cleanup sweep runs.
 const CLEANUP_CHECK_INTERVAL_SECS: u64 = 10;
+// How often freed pages are handed back to the OS. mimalloc caches them per-arena for fast reuse,
+// so without this RSS settles at the highest point playback ever reached and stays there. Spaced
+// out because purging costs allocator overhead on the bursty alloc/free of decoding.
+const HEAP_RECLAIM_INTERVAL_SECS: u64 = 300;
 // How long a track may go without a frame request before it is ended with the `cleanup` reason.
 // Not configurable: the protocol has no key for it.
 const PLAYER_CLEANUP_THRESHOLD_MS: u64 = 60_000;
@@ -100,6 +104,7 @@ impl AppState {
             state.inner.config.lavalink.server.player_update_interval,
         );
         state.spawn_player_cleanup_task();
+        spawn_heap_reclaim_task();
         state
     }
 
@@ -202,4 +207,20 @@ impl AppState {
             },
         );
     }
+}
+
+// Return pages freed since the last pass to the OS.
+//
+// Node-wide rather than per-session: what it reclaims is the allocator's arena cache, which every
+// thread shares. `MIMALLOC_PURGE_DELAY` does the same job continuously but only when the launcher
+// sets it, and only the container images do; this covers a bare binary or a systemd unit too.
+fn spawn_heap_reclaim_task() {
+    TASKS.add(
+        "heap_reclaim",
+        Duration::from_secs(HEAP_RECLAIM_INTERVAL_SECS),
+        || async {
+            // Forced, so it purges the shared arenas and not just the calling thread's heap.
+            unsafe { libmimalloc_sys::mi_collect(true) };
+        },
+    );
 }

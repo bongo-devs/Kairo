@@ -2,7 +2,6 @@
 
 use std::path::Path;
 
-use tracing::Level;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::fmt::time::ChronoLocal;
@@ -17,7 +16,7 @@ const TIME_FORMAT: &str = "%H:%M:%S";
 
 /// Install the global subscriber. The returned guard flushes the file sink when dropped, so hold
 /// it for as long as the process should keep logging.
-pub fn init(cfg: &LoggingConfig, sentry_enabled: bool) -> Option<WorkerGuard> {
+pub fn init(cfg: &LoggingConfig) -> Option<WorkerGuard> {
     let mut layers: Vec<Box<dyn Layer<Registry> + Send + Sync>> = Vec::new();
 
     layers.push(fmt_layer(cfg, cfg.color, std::io::stdout));
@@ -28,19 +27,6 @@ pub fn init(cfg: &LoggingConfig, sentry_enabled: bool) -> Option<WorkerGuard> {
         layers.push(fmt_layer(cfg, false, writer));
         guard
     });
-
-    // Only added when Sentry is configured, to keep the per-log cost off everyone else.
-    if sentry_enabled {
-        use sentry::integrations::tracing::EventFilter;
-        let sentry_layer = sentry::integrations::tracing::layer().event_filter(|metadata| {
-            match *metadata.level() {
-                Level::ERROR | Level::WARN => EventFilter::Event,
-                Level::INFO => EventFilter::Breadcrumb,
-                _ => EventFilter::Ignore,
-            }
-        });
-        layers.push(sentry_layer.boxed());
-    }
 
     tracing_subscriber::registry()
         .with(layers)
