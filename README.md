@@ -3,12 +3,6 @@
 A Lavalink v4 compatible audio node. Existing Lavalink clients talk to it unchanged: the same REST
 API, the same WebSocket events, the same encoded track format.
 
-Track loading, decoding, lyrics and the voice connection come from the
-[`player`](https://github.com/bongo-devs/player), [`sources`](https://github.com/bongo-devs/sources),
-[`lyrics`](https://github.com/bongo-devs/lyrics) and [`voice`](https://github.com/bongo-devs/voice)
-crates. This repository is the node around them: the HTTP API, the WebSocket, and the sessions and
-players behind both.
-
 ## Running
 
 Docker is the supported way to run it.
