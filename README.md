@@ -1,7 +1,12 @@
 # kairo
 
-A Lavalink v4 compatible audio node. Existing Lavalink clients talk to it unchanged: the same REST
-API, the same WebSocket events, the same encoded track format.
+[![Build](https://img.shields.io/github/actions/workflow/status/bongo-devs/Kairo/rust.yml?branch=main&label=build)](https://github.com/bongo-devs/Kairo/actions/workflows/rust.yml)
+[![Container](https://img.shields.io/badge/ghcr.io-kairo-2496ED?logo=docker&logoColor=white)](https://github.com/bongo-devs/Kairo/pkgs/container/kairo)
+[![Protocol](https://img.shields.io/badge/protocol-Lavalink%20v4-007ec6)](https://lavalink.dev)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+Standalone Discord audio sending node, written in Rust. Drop-in Lavalink v4 compatible: the same
+REST API, the same WebSocket events, the same encoded track format.
 
 ## Running
 
@@ -26,14 +31,6 @@ docker compose up -d
 
 The node serves port 2333 and reads `/app/application.yml`. Set `KAIRO_CONFIG` to read it from
 somewhere else.
-
-Running the binary directly instead of a container skips the allocator tuning the images set, which
-costs around 12 MB of resident memory at idle and keeps freed pages from going back to the OS. Pass
-it yourself:
-
-```sh
-MIMALLOC_PURGE_DELAY=10 MIMALLOC_ARENA_EAGER_COMMIT=0 ./kairo
-```
 
 ## Configuration
 

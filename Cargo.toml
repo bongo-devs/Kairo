@@ -3,7 +3,7 @@ name = "kairo"
 version = "4.1.0"
 edition = "2021"
 license = "MIT"
-description = "Lavalink v4 compatible audio node: REST and WebSocket control plane over the player and voice crates."
+description = "Standalone Discord audio sending node, written in Rust. Drop-in Lavalink v4 compatible."
 
 [dependencies]
 axum = { version = "0.8", features = ["ws", "http2"] }
