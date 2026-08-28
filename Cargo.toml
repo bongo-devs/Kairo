@@ -6,30 +6,71 @@ license = "MIT"
 description = "Standalone Discord audio sending node, written in Rust. Drop-in Lavalink v4 compatible."
 
 [dependencies]
-axum = { version = "0.8", features = ["ws", "http2"] }
 bytes = "1"
-chrono = { version = "0.4", default-features = false, features = ["clock"] }
 futures-util = "0.3"
-hyper = { version = "1", features = ["server", "http1", "http2"] }
-hyper-util = { version = "0.1", features = ["server-auto", "tokio"] }
 libc = "0.2"
-libmimalloc-sys = { version = "0.1.44", features = ["extended"] }
-lyrics = { git = "https://github.com/bongo-devs/lyrics" }
 mimalloc = "0.1.48"
 perf_monitor = "0.2.1"
-player = { git = "https://github.com/bongo-devs/player" }
 rand = "0.8"
-rustls = { version = "0.23", default-features = false, features = ["ring"] }
-serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
-sources = { git = "https://github.com/bongo-devs/sources" }
-tokio = { version = "1.52", features = ["tracing", "macros", "signal", "rt-multi-thread"] }
 tower-service = "0.3"
 tracing = "0.1"
 tracing-appender = "0.2"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "chrono"] }
-voice = { git = "https://github.com/bongo-devs/voice" }
+
+[dependencies.lyrics]
+git = "https://github.com/bongo-devs/lyrics"
+rev = "ccf928f04cbc0c6dd839398307fd12a460de08f9"
+
+[dependencies.player]
+git = "https://github.com/bongo-devs/player"
+
+[dependencies.sources]
+git = "https://github.com/bongo-devs/sources"
+rev = "484ea7a424d13ad27455dc3f38bfa0bfe8bab664"
+
+[dependencies.voice]
+git = "https://github.com/bongo-devs/voice"
+rev = "848da7f3b2dd543ee3941176c56760ca18c7193c"
+
+[dependencies.tokio]
+version = "1.52"
+features = ["tracing", "macros", "signal", "rt-multi-thread"]
+
+[dependencies.axum]
+version = "0.8"
+default-features = true
+features = ["ws", "http2"]
+
+[dependencies.chrono]
+version = "0.4"
+default-features = false
+features = ["clock"]
+
+[dependencies.hyper]
+version = "1"
+features = ["server", "http1", "http2"]
+
+[dependencies.hyper-util]
+version = "0.1"
+features = ["server-auto", "tokio"]
+
+[dependencies.libmimalloc-sys]
+version = "0.1.44"
+features = ["extended"]
+
+[dependencies.rustls]
+version = "0.23"
+default-features = false
+features = ["ring"]
+
+[dependencies.serde]
+version = "1"
+features = ["derive"]
+
+[dependencies.tracing-subscriber]
+version = "0.3"
+features = ["env-filter", "json", "chrono"]
 
 [profile.release]
 lto = "thin"

@@ -1766,7 +1766,7 @@ checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 [[package]]
 name = "lyrics"
 version = "0.1.0"
-source = "git+https://github.com/bongo-devs/lyrics#ccf928f04cbc0c6dd839398307fd12a460de08f9"
+source = "git+https://github.com/bongo-devs/lyrics?rev=ccf928f04cbc0c6dd839398307fd12a460de08f9#ccf928f04cbc0c6dd839398307fd12a460de08f9"
 dependencies = [
  "async-trait",
  "futures",
@@ -2136,7 +2136,7 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 [[package]]
 name = "player"
 version = "0.1.0"
-source = "git+https://github.com/bongo-devs/player#ae361dbaeb8fad79cf21b1b6ff4e76a1b74f261f"
+source = "git+https://github.com/bongo-devs/player#9e397c7ac6f8f048f3680213b69a6ad3b7cb04a3"
 dependencies = [
  "aes",
  "audiopus",
@@ -2840,7 +2840,7 @@ dependencies = [
 [[package]]
 name = "sources"
 version = "0.1.0"
-source = "git+https://github.com/bongo-devs/sources#8170ef8645b792406363275e68c5100fb610df69"
+source = "git+https://github.com/bongo-devs/sources?rev=484ea7a424d13ad27455dc3f38bfa0bfe8bab664#484ea7a424d13ad27455dc3f38bfa0bfe8bab664"
 dependencies = [
  "aes",
  "base64",
@@ -3577,7 +3577,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "voice"
 version = "0.1.0"
-source = "git+https://github.com/bongo-devs/voice#848da7f3b2dd543ee3941176c56760ca18c7193c"
+source = "git+https://github.com/bongo-devs/voice?rev=848da7f3b2dd543ee3941176c56760ca18c7193c#848da7f3b2dd543ee3941176c56760ca18c7193c"
 dependencies = [
  "aes-gcm",
  "bytes",
@@ -3754,7 +3754,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
