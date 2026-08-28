@@ -1,75 +1,59 @@
-# Kairo
+# kairo
 
-A Lavalink v4 compatible audio node, written in Rust. Existing Lavalink clients can point at it
-without changes: it speaks the same REST API, the same WebSocket events, and the same track
-encoding.
+A Lavalink v4 compatible audio node. Existing Lavalink clients talk to it unchanged: the same REST
+API, the same WebSocket events, the same encoded track format.
 
-## Running it
+Track loading, decoding, lyrics and the voice connection come from the
+[`player`](https://github.com/bongo-devs/player), [`sources`](https://github.com/bongo-devs/sources),
+[`lyrics`](https://github.com/bongo-devs/lyrics) and [`voice`](https://github.com/bongo-devs/voice)
+crates. This repository is the node around them: the HTTP API, the WebSocket, and the sessions and
+players behind both.
 
-Copy the example configuration, set a password, and start the node:
+## Running
 
-```bash
-cp application.yml.example application.yml
-cargo run --release
+Docker is the supported way to run it.
+
+```sh
+curl -O https://raw.githubusercontent.com/bongo-devs/Kairo/main/application.yml.example
+mv application.yml.example application.yml
+
+docker run -d --name kairo -p 2333:2333 \
+  -v "$PWD/application.yml:/app/application.yml:ro" \
+  -v "$PWD/logs:/app/logs" \
+  ghcr.io/bongo-devs/kairo:latest
 ```
 
-It listens on `0.0.0.0:2333` by default. The configuration file is taken from the first command line
-argument, then `$KAIRO_CONFIG`, then `./application.yml`.
+Or, from a clone of this repository:
 
-With Docker instead:
-
-```bash
+```sh
+cp application.yml.example application.yml
 docker compose up -d
 ```
 
+The node serves port 2333 and reads `/app/application.yml`. Set `KAIRO_CONFIG` to read it from
+somewhere else.
+
 ## Configuration
 
-`application.yml.example` documents every key inline. The blocks worth knowing about:
+Every key is documented inline in [`application.yml.example`](application.yml.example). The blocks:
 
-- `server` and `lavalink.server`: listener, password, frame buffer, filters.
-- `sources`: which platforms are enabled, their limits and credentials. Sources that only resolve
-  metadata play through `sources.mirror`.
-- `lyrics`: the providers to query. Disabled unmounts the lyrics endpoints.
+- `server`, `lavalink.server`: the listener, the client password, the frame buffer, the filters.
+- `sources`: which platforms are enabled, and their limits and credentials. A source that only
+  resolves metadata plays through `sources.mirror`.
+- `lyrics`: the providers to query. Disabled leaves the lyrics endpoints unmounted.
 - `logging`: level, per-module overrides, format, and optional rolling file output.
-- `metrics.prometheus` and `sentry`: both off unless configured.
+- `metrics.prometheus`, `sentry`: both off until configured.
 
-Every block is optional and falls back to its own defaults.
-
-## The API
-
-- `GET /version`, `GET /v4/info`, `GET /v4/stats`
-- `GET /v4/loadtracks`, `GET /v4/loadsearch`, `GET /v4/decodetrack`, `POST /v4/decodetracks`
-- `PATCH /v4/sessions/{id}`, and the player routes under `/v4/sessions/{id}/players`
-- `GET /v4/routeplanner/status`, `POST /v4/routeplanner/free/{address,all}`
-- `GET /v4/lyrics` and the per-player lyrics routes, when lyrics are enabled
-- `GET /v4/websocket` for the event stream
-
-Everything except the Prometheus endpoint requires the configured password in the `Authorization`
-header.
-
-## Building from source
-
-Rust 1.96 or newer, plus `cmake`, `clang`, `pkg-config` and `perl`: libopus is compiled and linked
-statically.
-
-```bash
-cargo build --release
-cargo test
-cargo clippy --all-targets
-```
-
-Audio decoding, source resolution, lyrics and the voice transport live in separate crates
-([`player`](https://github.com/bongo-devs/player), [`sources`](https://github.com/bongo-devs/sources),
-[`lyrics`](https://github.com/bongo-devs/lyrics), [`voice`](https://github.com/bongo-devs/voice)),
-which Cargo fetches over git. This repository is the node around them: the REST API, the WebSocket,
-the sessions and the players.
+Every block is optional and falls back to its own defaults. All endpoints except the Prometheus one
+require the configured password in the `Authorization` header.
 
 ## Credits
 
-The API, the WebSocket events and the track encoding are those of
+The REST API, the WebSocket events and the encoded track format are those of
 [Lavalink](https://github.com/lavalink-devs/Lavalink) by Freya Arbjerg and its contributors, which
 defines the v4 protocol this node implements and which every compatible client was written against.
+Lavalink is MIT licensed; its notice is reproduced in [LICENSE](LICENSE).
 
 ## License
 
-MIT. See [LICENSE](LICENSE), which also carries the Lavalink copyright notice.
+MIT. See [LICENSE](LICENSE), which also carries the third-party notice for Lavalink.
