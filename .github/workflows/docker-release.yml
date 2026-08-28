@@ -19,7 +19,6 @@ env:
   CMAKE_POLICY_VERSION_MINIMUM: "3.5"
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: sccache
-  # The dependency fetch goes through the git CLI, so the credentials configured below apply to it.
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
 jobs:
   build-linux:

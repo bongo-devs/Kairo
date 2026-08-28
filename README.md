@@ -2,7 +2,6 @@
 
 [![Build](https://img.shields.io/github/actions/workflow/status/bongo-devs/Kairo/rust.yml?branch=main&label=build)](https://github.com/bongo-devs/Kairo/actions/workflows/rust.yml)
 [![Container](https://img.shields.io/badge/ghcr.io-kairo-2496ED?logo=docker&logoColor=white)](https://github.com/bongo-devs/Kairo/pkgs/container/kairo)
-[![Protocol](https://img.shields.io/badge/protocol-Lavalink%20v4-007ec6)](https://lavalink.dev)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 Standalone Discord audio sending node, written in Rust. Drop-in Lavalink v4 compatible: the same
