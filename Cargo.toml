@@ -28,7 +28,7 @@ rev = "ad2a244e4497af3222b6fa77b36c21ed62f9c5dc"
 
 [dependencies.sources]
 git = "https://github.com/bongo-devs/sources"
-rev = "484ea7a424d13ad27455dc3f38bfa0bfe8bab664"
+rev = "d7caa2a0ac88bcbc2ac45ec556f3356421d60dee"
 
 [dependencies.voice]
 git = "https://github.com/bongo-devs/voice"

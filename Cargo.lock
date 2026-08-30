@@ -99,26 +99,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "audiopus"
-version = "0.3.0-rc.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab55eb0e56d7c6de3d59f544e5db122d7725ec33be6a276ee8241f3be6473955"
-dependencies = [
- "audiopus_sys",
-]
-
-[[package]]
-name = "audiopus_sys"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62314a1546a2064e033665d658e88c620a62904be945f8147e6b16c3db9f8651"
-dependencies = [
- "cmake",
- "log",
- "pkg-config",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -405,15 +385,6 @@ dependencies = [
  "textwrap",
  "unicode-width",
  "vec_map",
-]
-
-[[package]]
-name = "cmake"
-version = "0.1.58"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0f78a02292a74a88ac736019ab962ece0bc380e3f977bf72e376c5d78ff0678"
-dependencies = [
- "cc",
 ]
 
 [[package]]
@@ -1460,7 +1431,7 @@ dependencies = [
  "lyrics",
  "mimalloc",
  "perf_monitor",
- "player 0.1.0 (git+https://github.com/bongo-devs/player?rev=ad2a244e4497af3222b6fa77b36c21ed62f9c5dc)",
+ "player",
  "rand 0.8.8",
  "rustls",
  "serde",
@@ -2133,12 +2104,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pkg-config"
-version = "0.3.34"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
-
-[[package]]
 name = "player"
 version = "0.1.0"
 source = "git+https://github.com/bongo-devs/player?rev=ad2a244e4497af3222b6fa77b36c21ed62f9c5dc#ad2a244e4497af3222b6fa77b36c21ed62f9c5dc"
@@ -2148,26 +2113,6 @@ dependencies = [
  "bytes",
  "cbc",
  "opus-rs",
- "reqwest",
- "serde",
- "serde_json",
- "symphonia",
- "symphonia-core",
- "tokio",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "player"
-version = "0.1.0"
-source = "git+https://github.com/bongo-devs/player#9e397c7ac6f8f048f3680213b69a6ad3b7cb04a3"
-dependencies = [
- "aes",
- "audiopus",
- "base64",
- "bytes",
- "cbc",
  "reqwest",
  "serde",
  "serde_json",
@@ -2865,7 +2810,7 @@ dependencies = [
 [[package]]
 name = "sources"
 version = "0.1.0"
-source = "git+https://github.com/bongo-devs/sources?rev=484ea7a424d13ad27455dc3f38bfa0bfe8bab664#484ea7a424d13ad27455dc3f38bfa0bfe8bab664"
+source = "git+https://github.com/bongo-devs/sources?rev=d7caa2a0ac88bcbc2ac45ec556f3356421d60dee#d7caa2a0ac88bcbc2ac45ec556f3356421d60dee"
 dependencies = [
  "aes",
  "base64",
@@ -2875,7 +2820,7 @@ dependencies = [
  "hmac",
  "md-5",
  "percent-encoding",
- "player 0.1.0 (git+https://github.com/bongo-devs/player)",
+ "player",
  "rand 0.8.8",
  "regex",
  "serde",
