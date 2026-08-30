@@ -1460,7 +1460,7 @@ dependencies = [
  "lyrics",
  "mimalloc",
  "perf_monitor",
- "player",
+ "player 0.1.0 (git+https://github.com/bongo-devs/player?rev=ad2a244e4497af3222b6fa77b36c21ed62f9c5dc)",
  "rand 0.8.8",
  "rustls",
  "serde",
@@ -2008,6 +2008,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "opus-rs"
+version = "0.1.32"
+source = "git+https://github.com/restsend/opus-rs?rev=ba7d023d532fa4cb5d6037b454b9017fec747c13#ba7d023d532fa4cb5d6037b454b9017fec747c13"
+
+[[package]]
 name = "p256"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2132,6 +2137,26 @@ name = "pkg-config"
 version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
+
+[[package]]
+name = "player"
+version = "0.1.0"
+source = "git+https://github.com/bongo-devs/player?rev=ad2a244e4497af3222b6fa77b36c21ed62f9c5dc#ad2a244e4497af3222b6fa77b36c21ed62f9c5dc"
+dependencies = [
+ "aes",
+ "base64",
+ "bytes",
+ "cbc",
+ "opus-rs",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "symphonia",
+ "symphonia-core",
+ "tokio",
+ "tracing",
+ "url",
+]
 
 [[package]]
 name = "player"
@@ -2850,7 +2875,7 @@ dependencies = [
  "hmac",
  "md-5",
  "percent-encoding",
- "player",
+ "player 0.1.0 (git+https://github.com/bongo-devs/player)",
  "rand 0.8.8",
  "regex",
  "serde",

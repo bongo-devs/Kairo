@@ -24,6 +24,7 @@ rev = "ccf928f04cbc0c6dd839398307fd12a460de08f9"
 
 [dependencies.player]
 git = "https://github.com/bongo-devs/player"
+rev = "ad2a244e4497af3222b6fa77b36c21ed62f9c5dc"
 
 [dependencies.sources]
 git = "https://github.com/bongo-devs/sources"
