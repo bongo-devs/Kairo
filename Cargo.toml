@@ -20,19 +20,19 @@ tracing-appender = "0.2"
 
 [dependencies.lyrics]
 git = "https://github.com/bongo-devs/lyrics"
-rev = "ccf928f04cbc0c6dd839398307fd12a460de08f9"
+tag = "v0.1.0"
 
 [dependencies.player]
 git = "https://github.com/bongo-devs/player"
-rev = "ad2a244e4497af3222b6fa77b36c21ed62f9c5dc"
+tag = "v0.1.1-rc"
 
 [dependencies.sources]
 git = "https://github.com/bongo-devs/sources"
-rev = "484ea7a424d13ad27455dc3f38bfa0bfe8bab664"
+tag = "v0.1.0"
 
 [dependencies.voice]
 git = "https://github.com/bongo-devs/voice"
-rev = "848da7f3b2dd543ee3941176c56760ca18c7193c"
+tag = "v0.1.0"
 
 [dependencies.tokio]
 version = "1.52"

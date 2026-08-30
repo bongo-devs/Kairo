@@ -99,26 +99,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "audiopus"
-version = "0.3.0-rc.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab55eb0e56d7c6de3d59f544e5db122d7725ec33be6a276ee8241f3be6473955"
-dependencies = [
- "audiopus_sys",
-]
-
-[[package]]
-name = "audiopus_sys"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62314a1546a2064e033665d658e88c620a62904be945f8147e6b16c3db9f8651"
-dependencies = [
- "cmake",
- "log",
- "pkg-config",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -337,12 +317,12 @@ dependencies = [
 
 [[package]]
 name = "chacha20"
-version = "0.10.1"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d524456ba66e72eb8b115ff89e01e497f8e6d11d78b70b1aa13c0fbd97540a81"
+checksum = "65c35e4b699c7e15ccbe7ee35c005e4fc0a278d22238a2857e6ce2dadeda1b06"
 dependencies = [
  "cfg-if",
- "cpufeatures 0.3.0",
+ "cpufeatures 0.3.1",
  "rand_core 0.10.1",
 ]
 
@@ -408,15 +388,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cmake"
-version = "0.1.58"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0f78a02292a74a88ac736019ab962ece0bc380e3f977bf72e376c5d78ff0678"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -450,9 +421,9 @@ dependencies = [
 
 [[package]]
 name = "cpufeatures"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b2a41393f66f16b0823bb79094d54ac5fbd34ab292ddafb9a0456ac9f87d201"
+checksum = "5ca28b0ae3115b884660db4118d803791fd6756b6e88f39c0f3f7859060d7566"
 dependencies = [
  "libc",
 ]
@@ -1193,9 +1164,9 @@ checksum = "15cdd26707701c53297e2fa6afb323d55fbc1d0810c3aec078ae3ef0424c3c15"
 
 [[package]]
 name = "hyper"
-version = "1.11.0"
+version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d22053281f852e11534f5198498373cbb59295120a20771d90f7ed1897490a72"
+checksum = "27b501faa50e7a26c3d3560ca625132f4078a17771f4810baf70475ae48cbe43"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -1382,9 +1353,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.14.0"
+version = "2.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9"
+checksum = "07aa2048142242915a31d35844fb311e0e53fcca590c3a0a40dcf1b841fa09eb"
 dependencies = [
  "equivalent",
  "hashbrown",
@@ -1460,7 +1431,7 @@ dependencies = [
  "lyrics",
  "mimalloc",
  "perf_monitor",
- "player 0.1.0 (git+https://github.com/bongo-devs/player?rev=ad2a244e4497af3222b6fa77b36c21ed62f9c5dc)",
+ "player",
  "rand 0.8.8",
  "rustls",
  "serde",
@@ -1721,13 +1692,12 @@ dependencies = [
 
 [[package]]
 name = "libmimalloc-sys"
-version = "0.1.44"
+version = "0.1.49"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "667f4fec20f29dfc6bc7357c582d91796c169ad7e2fce709468aefeb2c099870"
+checksum = "6a45a52f43e1c16f667ccfe4dd8c85b7f7c204fd5e3bf46c5b0db9a5c3c0b8e9"
 dependencies = [
  "cc",
  "cty",
- "libc",
 ]
 
 [[package]]
@@ -1766,7 +1736,7 @@ checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 [[package]]
 name = "lyrics"
 version = "0.1.0"
-source = "git+https://github.com/bongo-devs/lyrics?rev=ccf928f04cbc0c6dd839398307fd12a460de08f9#ccf928f04cbc0c6dd839398307fd12a460de08f9"
+source = "git+https://github.com/bongo-devs/lyrics?tag=v0.1.0#d5c1f9966fc2639e254b5cb68287025bb248d906"
 dependencies = [
  "async-trait",
  "futures",
@@ -1821,9 +1791,9 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "mimalloc"
-version = "0.1.48"
+version = "0.1.52"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1ee66a4b64c74f4ef288bcbb9192ad9c3feaad75193129ac8509af543894fd8"
+checksum = "2d4139bb28d14ad1facf21d5eb8825051b326e172d216b39f6d31df53cc97862"
 dependencies = [
  "libmimalloc-sys",
 ]
@@ -2010,7 +1980,8 @@ dependencies = [
 [[package]]
 name = "opus-rs"
 version = "0.1.32"
-source = "git+https://github.com/restsend/opus-rs?rev=ba7d023d532fa4cb5d6037b454b9017fec747c13#ba7d023d532fa4cb5d6037b454b9017fec747c13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f18e50e3ad1d816434f675150eca1b4c669e49cac7b685f733a88127cd75551"
 
 [[package]]
 name = "p256"
@@ -2133,41 +2104,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "pkg-config"
-version = "0.3.34"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
-
-[[package]]
 name = "player"
-version = "0.1.0"
-source = "git+https://github.com/bongo-devs/player?rev=ad2a244e4497af3222b6fa77b36c21ed62f9c5dc#ad2a244e4497af3222b6fa77b36c21ed62f9c5dc"
+version = "0.1.1"
+source = "git+https://github.com/bongo-devs/player?tag=v0.1.1-rc#d8a6d631853d6d4e461a09e3168c998c001c8bec"
 dependencies = [
  "aes",
  "base64",
  "bytes",
  "cbc",
  "opus-rs",
- "reqwest",
- "serde",
- "serde_json",
- "symphonia",
- "symphonia-core",
- "tokio",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "player"
-version = "0.1.0"
-source = "git+https://github.com/bongo-devs/player#9e397c7ac6f8f048f3680213b69a6ad3b7cb04a3"
-dependencies = [
- "aes",
- "audiopus",
- "base64",
- "bytes",
- "cbc",
  "reqwest",
  "serde",
  "serde_json",
@@ -2369,7 +2314,7 @@ version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7f5fa3a058cd35567ef9bfa5e75732bee0f9e4c55fa90477bef2dfcdbc4be80"
 dependencies = [
- "chacha20 0.10.1",
+ "chacha20 0.10.2",
  "getrandom 0.4.3",
  "rand_core 0.10.1",
 ]
@@ -2592,7 +2537,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2864,8 +2809,8 @@ dependencies = [
 
 [[package]]
 name = "sources"
-version = "0.1.0"
-source = "git+https://github.com/bongo-devs/sources?rev=484ea7a424d13ad27455dc3f38bfa0bfe8bab664#484ea7a424d13ad27455dc3f38bfa0bfe8bab664"
+version = "0.1.1"
+source = "git+https://github.com/bongo-devs/sources?tag=v0.1.0#7e0f2bcd90a32cfd2b7d7dd63858f227f364a7e7"
 dependencies = [
  "aes",
  "base64",
@@ -2875,7 +2820,7 @@ dependencies = [
  "hmac",
  "md-5",
  "percent-encoding",
- "player 0.1.0 (git+https://github.com/bongo-devs/player)",
+ "player",
  "rand 0.8.8",
  "regex",
  "serde",
@@ -3572,9 +3517,9 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 
 [[package]]
 name = "uuid"
-version = "1.25.0"
+version = "1.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f053576934f05a761a402421fbbe3d425d9366f75f978806a037b3ca481abecc"
+checksum = "b5772d71c9be8a8a6ac2117d949c5b224c1b72241bb611d9a3012edcf8af7812"
 dependencies = [
  "getrandom 0.4.3",
  "js-sys",
@@ -3602,7 +3547,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "voice"
 version = "0.1.0"
-source = "git+https://github.com/bongo-devs/voice?rev=848da7f3b2dd543ee3941176c56760ca18c7193c#848da7f3b2dd543ee3941176c56760ca18c7193c"
+source = "git+https://github.com/bongo-devs/voice?tag=v0.1.0#5490ce4d9a165b9d9ab49a97b0acb0fbf6d39491"
 dependencies = [
  "aes-gcm",
  "bytes",
@@ -3779,7 +3724,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3861,6 +3806,15 @@ name = "windows-sys"
 version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "282be5f36a8ce781fad8c8ae18fa3f9beff57ec1b52cb3de0789201425d9a33d"
+dependencies = [
+ "windows-targets 0.52.6",
+]
+
+[[package]]
+name = "windows-sys"
+version = "0.59.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e38bc4d79ed67fd075bcc251a1c39b32a1776bbe92e5bef1f0bf1f8c531853b"
 dependencies = [
  "windows-targets 0.52.6",
 ]

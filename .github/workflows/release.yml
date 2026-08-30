@@ -1,0 +1,218 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Specific commit SHA (leave empty for latest)"
+        required: false
+        default: ""
+  # A tag run can only inherit the default branch's caches, so build here when the lockfile moves.
+  # Without it every release compiles all 399 crates from scratch.
+  push:
+    branches: [main]
+    paths:
+      - Cargo.lock
+      - Cargo.toml
+      - .github/workflows/release.yml
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  RUSTC_WRAPPER: sccache
+  SCCACHE_GHA_ENABLED: "true"
+
+# All five build legs start at once. Only the image waits, and only on the two Linux ones.
+jobs:
+  linux:
+    name: Linux ${{ matrix.arch }}
+    # Not a newer image: the binary has to run on the distroless cc-debian12 base, glibc 2.36.
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            arch: amd64
+          - target: aarch64-unknown-linux-gnu
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit || github.ref }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: mozilla-actions/sccache-action@v0.0.9
+
+      - name: Authenticate for the private git dependencies
+        env:
+          TOKEN: ${{ secrets.CARGO_GIT_TOKEN }}
+        run: |
+          test -n "$TOKEN" || { echo "::error::CARGO_GIT_TOKEN is unset, so cargo cannot fetch the git dependencies"; exit 1; }
+          git config --global url."https://x-access-token:$TOKEN@github.com/".insteadOf https://github.com/
+
+      # Downloads only, and not target-specific, so every leg shares one entry. Cargo re-extracts
+      # registry/src from these faster than a cache that size restores; sccache holds the objects.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-deps-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-deps-${{ runner.os }}-
+
+      # ring, libmimalloc-sys and perf_monitor all compile C for the target.
+      - name: Install the aarch64 cross-compiler
+        if: matrix.arch == 'arm64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }} --bin kairo
+
+      # Hit rate, so a slow release is diagnosable instead of a guess.
+      - run: sccache --show-stats
+
+      # Named after the arch so the docker job's download lands it straight at the path the
+      # `ci` stage COPYs, with no renaming or shuffling in between.
+      - uses: actions/upload-artifact@v4
+        if: github.event_name != 'push'
+        with:
+          name: ${{ matrix.arch }}
+          path: target/${{ matrix.target }}/release/kairo
+          if-no-files-found: error
+
+      - name: Attach the binary to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp target/${{ matrix.target }}/release/kairo kairo-linux-${{ matrix.arch }}
+          gh release upload "${{ github.event.release.tag_name }}" kairo-linux-${{ matrix.arch }} --clobber
+  # macOS and Windows only ship release assets, so nothing downstream waits on them. The x86_64 mac
+  # leg cross-links against the same universal SDK the arm runner already has.
+  desktop:
+    name: ${{ matrix.asset }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            bin: kairo
+            asset: kairo-macos-arm64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            bin: kairo
+            asset: kairo-macos-amd64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin: kairo.exe
+            asset: kairo-windows-amd64.exe
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit || github.ref }}
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: mozilla-actions/sccache-action@v0.0.9
+
+      - name: Authenticate for the private git dependencies
+        env:
+          TOKEN: ${{ secrets.CARGO_GIT_TOKEN }}
+        run: |
+          test -n "$TOKEN" || { echo "::error::CARGO_GIT_TOKEN is unset, so cargo cannot fetch the git dependencies"; exit 1; }
+          git config --global url."https://x-access-token:$TOKEN@github.com/".insteadOf https://github.com/
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-deps-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-deps-${{ runner.os }}-
+
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }} --bin kairo
+
+      - run: sccache --show-stats
+
+      - name: Attach the binary to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp "target/${{ matrix.target }}/release/${{ matrix.bin }}" "${{ matrix.asset }}"
+          gh release upload "${{ github.event.release.tag_name }}" "${{ matrix.asset }}" --clobber
+  docker:
+    name: Docker image
+    needs: linux
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit || github.ref }}
+
+      # Both artifacts, each into bin/linux/<its name>/kairo. The zip drops the executable bit.
+      - uses: actions/download-artifact@v4
+        with:
+          path: bin/linux
+
+      - run: chmod +x bin/linux/*/kairo
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+
+      # No QEMU and no layer cache: the `ci` stage only COPYs a prebuilt binary, so nothing RUNs
+      # under emulation and the one layer worth caching changes every release anyway.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          target: ci
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

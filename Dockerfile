@@ -8,20 +8,11 @@ RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    cmake \
-    pkg-config \
-    libclang-dev \
-    clang \
     build-essential \
-    perl \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-ENV LIBOPUS_STATIC=1 \
-    OPUS_STATIC=1 \
-    AUDIOPUS_STATIC=1 \
-    CMAKE_POLICY_VERSION_MINIMUM=3.5 \
-    CARGO_TERM_COLOR=always
+ENV CARGO_TERM_COLOR=always
 
 COPY --from=planner /build/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
