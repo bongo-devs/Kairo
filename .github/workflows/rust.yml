@@ -9,10 +9,6 @@ on:
 env:
   CARGO_TERM_COLOR: always
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-  LIBOPUS_STATIC: "1"
-  OPUS_STATIC: "1"
-  AUDIOPUS_STATIC: "1"
-  CMAKE_POLICY_VERSION_MINIMUM: "3.5"
 
 jobs:
   build:
@@ -30,12 +26,6 @@ jobs:
           fi
           git config --global url."https://x-access-token:$TOKEN@github.com/".insteadOf \
             https://github.com/
-
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake pkg-config libclang-dev clang build-essential perl
 
       - uses: actions/cache@v4
         with:
