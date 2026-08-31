@@ -26,7 +26,6 @@ COPY --from=builder --chown=nonroot:nonroot /build/target/release/kairo /app/kai
 
 ENV KAIRO_CONFIG=/app/application.yml \
     RUST_LOG=info \
-    MIMALLOC_PURGE_DELAY=10 \
     MIMALLOC_ARENA_EAGER_COMMIT=0
 
 EXPOSE 2333
@@ -40,7 +39,6 @@ COPY bin/linux/${TARGETARCH}/kairo /app/kairo
 
 ENV KAIRO_CONFIG=/app/application.yml \
     RUST_LOG=info \
-    MIMALLOC_PURGE_DELAY=10 \
     MIMALLOC_ARENA_EAGER_COMMIT=0
 
 EXPOSE 2333
