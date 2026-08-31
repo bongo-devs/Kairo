@@ -3,3 +3,5 @@ application.yml
 logs/
 crates/
 extra/
+graphify-out/
+CLAUDE.md
