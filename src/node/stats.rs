@@ -35,16 +35,32 @@ fn memory_scale() -> u64 {
     1
 }
 
-fn process_memory() -> (u64, u64) {
+fn resident_memory() -> u64 {
     perf_monitor::mem::get_process_memory_info()
-        .map(|info| {
-            let scale = memory_scale();
-            (
-                info.resident_set_size * scale,
-                info.virtual_memory_size * scale,
-            )
-        })
-        .unwrap_or((0, 0))
+        .map(|info| info.resident_set_size * memory_scale())
+        .unwrap_or(0)
+}
+
+// What the allocator holds committed from the OS.
+//
+// Not the address space: mimalloc reserves arenas a gibibyte at a time and never unmaps them, so the
+// virtual size ratchets up with peak concurrency and says nothing about memory in use.
+fn committed_memory() -> u64 {
+    let mut fields = [0usize; 8];
+    let [elapsed, user, system, rss, peak_rss, commit, peak_commit, faults] = &mut fields;
+    unsafe {
+        libmimalloc_sys::mi_process_info(
+            elapsed,
+            user,
+            system,
+            rss,
+            peak_rss,
+            commit,
+            peak_commit,
+            faults,
+        );
+    }
+    fields[5] as u64
 }
 
 // The host's RAM, so a container with a memory limit advertises a ceiling it never gets.
@@ -61,11 +77,14 @@ fn total_ram() -> u64 {
     0
 }
 
-/// Process memory: `used` is the resident set rather than the Rust heap, `allocated` the address
-/// space held, `free` the part of that which is not resident, `reservable` the physical ceiling.
+/// Process memory: `used` is the resident set rather than the Rust heap, `allocated` what the
+/// allocator holds committed, `free` the committed part that is not resident, `reservable` the
+/// physical ceiling.
 pub fn memory() -> Memory {
-    let (resident, virtual_size) = process_memory();
-    let allocated = virtual_size.max(resident);
+    let resident = resident_memory();
+    // A commit smaller than the resident set means the resident pages the allocator does not own
+    // (the binary, thread stacks) outweigh its own; clamp so `free` cannot go negative.
+    let allocated = committed_memory().max(resident);
     Memory {
         free: (allocated - resident) as i64,
         used: resident as i64,
@@ -166,4 +185,27 @@ pub fn aggregate_frame_stats(context: &Arc<SocketContext>) -> Option<FrameStats>
         nulled: (nulled / players) as i32,
         deficit: (deficit / players) as i32,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The commit the allocator reports has to be real memory, not the reserved address space: the
+    // arenas alone are gibibytes wide, so anything near the virtual size means `memory` went back to
+    // reporting it.
+    #[test]
+    fn memory_reports_commit_rather_than_address_space() {
+        let memory = memory();
+        assert!(memory.used > 0, "a running process has a resident set");
+        assert!(memory.allocated >= memory.used);
+        assert_eq!(memory.free, memory.allocated - memory.used);
+        assert!(memory.reservable >= memory.allocated);
+        // A test binary commits single-digit MB. Two gibibytes is one arena reservation.
+        assert!(
+            memory.allocated < 2 * 1024 * 1024 * 1024,
+            "allocated looks like address space: {}",
+            memory.allocated
+        );
+    }
 }
