@@ -677,9 +677,9 @@ dependencies = [
 
 [[package]]
 name = "encoding_rs"
-version = "0.8.35"
+version = "0.8.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75030f3c4f45dafd7586dd6780965a8c7e8e285a5ecb86713e63a79c5b2766f3"
+checksum = "7268b386296a025e474d5140678f75d6de9493ae55a5d709eeb9dd08149945e1"
 dependencies = [
  "cfg-if",
 ]
@@ -1418,7 +1418,7 @@ dependencies = [
 
 [[package]]
 name = "kairo"
-version = "4.1.2"
+version = "4.2.0"
 dependencies = [
  "axum",
  "bytes",
@@ -2105,8 +2105,8 @@ dependencies = [
 
 [[package]]
 name = "player"
-version = "0.1.1"
-source = "git+https://github.com/bongo-devs/player?tag=v0.1.1-rc#d8a6d631853d6d4e461a09e3168c998c001c8bec"
+version = "0.1.2"
+source = "git+https://github.com/bongo-devs/player?tag=v0.1.2-rc#4129876d048ff9eb2a17a8ffa9e1e786194979ce"
 dependencies = [
  "aes",
  "base64",
@@ -2809,8 +2809,8 @@ dependencies = [
 
 [[package]]
 name = "sources"
-version = "0.1.4"
-source = "git+https://github.com/bongo-devs/sources?tag=v0.1.4#5020e97c5e3f3c87af236fb6067f75a9aa52ac43"
+version = "0.1.5"
+source = "git+https://github.com/bongo-devs/sources?tag=v0.1.5#b0b2cc44f22b2f9dd22141b440de5bb9c5861137"
 dependencies = [
  "aes",
  "base64",

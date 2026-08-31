@@ -94,6 +94,9 @@ pub enum CrossfadeCurve {
     /// Raised-cosine S-curve, the default.
     #[default]
     SCurve,
+    /// `f(x) = sin(πx/2)` fading in against `cos(πx/2)` fading out, which holds the overlap at
+    /// constant power instead of dipping through the middle of it.
+    Sinusoidal,
 }
 
 /// Per-player transition override, the `crossfade` field of a [`PlayerUpdate`].
@@ -156,6 +159,7 @@ impl CrossfadeSettings {
                 CrossfadeCurve::Exp => player::CrossfadeCurve::Exponential,
                 CrossfadeCurve::Log => player::CrossfadeCurve::Logarithmic,
                 CrossfadeCurve::SCurve => player::CrossfadeCurve::SCurve,
+                CrossfadeCurve::Sinusoidal => player::CrossfadeCurve::Sinusoidal,
             },
             gapless: self.gapless,
         })
@@ -173,6 +177,7 @@ impl CrossfadeSettings {
                 player::CrossfadeCurve::Exponential => CrossfadeCurve::Exp,
                 player::CrossfadeCurve::Logarithmic => CrossfadeCurve::Log,
                 player::CrossfadeCurve::SCurve => CrossfadeCurve::SCurve,
+                player::CrossfadeCurve::Sinusoidal => CrossfadeCurve::Sinusoidal,
             },
             gapless: options.gapless,
         }

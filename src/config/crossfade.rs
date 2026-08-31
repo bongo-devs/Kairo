@@ -78,6 +78,8 @@ pub enum CrossfadeCurve {
     /// Raised-cosine S-curve, the default.
     #[default]
     SCurve,
+    /// Constant-power sin/cos pair, `sin(πx/2)` in against `cos(πx/2)` out.
+    Sinusoidal,
 }
 
 impl CrossfadeCurve {
@@ -87,6 +89,7 @@ impl CrossfadeCurve {
             CrossfadeCurve::Exp => EngineCrossfadeCurve::Exponential,
             CrossfadeCurve::Log => EngineCrossfadeCurve::Logarithmic,
             CrossfadeCurve::SCurve => EngineCrossfadeCurve::SCurve,
+            CrossfadeCurve::Sinusoidal => EngineCrossfadeCurve::Sinusoidal,
         }
     }
 }
@@ -139,6 +142,7 @@ gapless: true
             ("exp", EngineCrossfadeCurve::Exponential),
             ("log", EngineCrossfadeCurve::Logarithmic),
             ("sCurve", EngineCrossfadeCurve::SCurve),
+            ("sinusoidal", EngineCrossfadeCurve::Sinusoidal),
         ] {
             let yaml = format!("enable: true\ncurve: {name}\n");
             let cfg: CrossfadeConfig = serde_yaml::from_str(&yaml).unwrap();
