@@ -22,6 +22,8 @@ use kairo::CONFIG;
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> ExitCode {
+    disable_thp();
+
     // The only way this fails is a provider already being installed, which is fine.
     let _ = rustls::crypto::ring::default_provider().install_default();
 
@@ -69,6 +71,25 @@ async fn main() -> ExitCode {
     serve(listener, app, http2, shutdown_signal()).await;
     ExitCode::SUCCESS
 }
+
+// Opt the process out of transparent huge pages.
+//
+// The allocator's arenas are 2 MiB aligned, so a host set to `always` has khugepaged collapse them
+// into huge pages. Freed slices are purged below that granularity, the collapse faults every hole
+// back in, and the resident set climbs towards a 2 MiB granular peak it never gives back.
+//
+// `KAIRO_ALLOW_THP` leaves the host setting alone, for a workload that would rather have the TLB.
+#[cfg(target_os = "linux")]
+fn disable_thp() {
+    if std::env::var_os("KAIRO_ALLOW_THP").is_some() {
+        return;
+    }
+    // Only fails on kernels below 3.15, which have nothing to opt out of.
+    unsafe { libc::prctl(libc::PR_SET_THP_DISABLE, 1, 0, 0, 0) };
+}
+
+#[cfg(not(target_os = "linux"))]
+fn disable_thp() {}
 
 // Accept connections until `shutdown` resolves, then let the open ones finish.
 //
