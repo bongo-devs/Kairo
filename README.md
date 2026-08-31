@@ -63,7 +63,9 @@ require the configured password in the `Authorization` header.
   rather than the upstream project, which exposes different endpoint names.
 - keys-api, <https://github.com/bongo-devs/keys-api>, is a shared credential store for the Deezer
   `arl`, YouTube OAuth tokens and cookies. Configured under `sources.keysApi`, and sources take
-  their credentials from there instead of the config file.
+  their credentials from there instead of the config file. Optional for Deezer, which otherwise
+  rotates the ARLs listed in `sources.deezer.arls`, and for YouTube OAuth. A YouTube cookie jar
+  comes from here only.
 
 ## Credits
 

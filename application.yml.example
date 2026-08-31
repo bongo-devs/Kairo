@@ -103,11 +103,16 @@ sources:
     artistLoadLimit: 20
   deezer: # deezer.com URLs + dzsearch: / dzisrc: / dzrec: / dzprev:
     # Plays its own audio. Metadata and dzprev: previews work bare; full playback
-    # needs masterDecryptionKey and an arl from keys-api, without which the source
-    # is not registered. Also works as a sources.mirror provider.
+    # needs masterDecryptionKey and an arl, without which the source is not
+    # registered. Also works as a sources.mirror provider.
     enabled: false
     masterDecryptionKey: "" # the 16-byte public Blowfish key, checked by SHA-256
     formats: ["MP3_128", "MP3_64"] # FLAC, MP3_320, MP3_256, MP3_128, MP3_64, AAC_64
+    # ARLs rotated round-robin, one per play, so Deezer runs without keys-api.
+    # Ignored when sources.keysApi is configured, which supplies the arl from its
+    # deezer provider instead; set one or the other. Paced by
+    # sources.keysApi.rotationThreshold either way.
+    arls: [] # e.g. ["arl #1", "arl #2"]
     proxy: # routes only Deezer's requests
       url: "" # e.g. http://host:3128 or socks5://host:1080
       username: ""
@@ -226,8 +231,8 @@ sources:
       # userAgent: "" # optional UA for cipher requests
   # Shared credential store. Sources take credentials from here instead of this file:
   # one key per provider is in flight at a time and is reported back before the next
-  # is taken. Required by deezer, optional for youtube where it replaces
-  # oauth.refreshTokens and is the only source of a cookie jar.
+  # is taken. Optional: deezer falls back to sources.deezer.arls, youtube to
+  # oauth.refreshTokens, which this replaces. A cookie jar comes from here only.
   keysApi:
     enabled: false
     url: "" # e.g. "https://keys.example.com"
@@ -236,7 +241,8 @@ sources:
     expirySkewSeconds: 60 # re-fetch this far before a token expires
     # Operations one key serves before it is reported working and replaced. A failed
     # operation always takes the next key immediately. 0 and 1 both hand the key back
-    # after every operation.
+    # after every operation. Also paces sources.deezer.arls, so it is read even when
+    # enabled above is false.
     rotationThreshold: 1
     # providers: # per-source provider slug overrides
     #   youtube: "youtube-burners"
