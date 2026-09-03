@@ -1418,7 +1418,7 @@ dependencies = [
 
 [[package]]
 name = "kairo"
-version = "4.2.0"
+version = "4.2.1"
 dependencies = [
  "axum",
  "bytes",
@@ -2809,8 +2809,8 @@ dependencies = [
 
 [[package]]
 name = "sources"
-version = "0.1.5"
-source = "git+https://github.com/bongo-devs/sources?tag=v0.1.5#b0b2cc44f22b2f9dd22141b440de5bb9c5861137"
+version = "0.1.8"
+source = "git+https://github.com/bongo-devs/sources?tag=v0.1.8#74186d8aa4573a0556c4d0256dc00933ef50e977"
 dependencies = [
  "aes",
  "base64",
