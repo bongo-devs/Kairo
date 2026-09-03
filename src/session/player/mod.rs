@@ -1,9 +1,4 @@
-//! One guild's player.
-//!
-//! Wraps the engine's [`player::AudioPlayer`], an optional [`voice::VoiceConnection`] for the
-//! Discord send loop, and an [`AudioLossCounter`]. Engine [`AudioEvent`]s are forwarded to the
-//! owning [`SocketContext`] as WebSocket events, and the PATCH operations the REST layer applies
-//! (play, stop, seek, volume, pause, filters, endTime, voice) all land here.
+//! One guild's player: the engine player, an optional voice connection, and the REST PATCH ops.
 //!
 //! Engine events carry only [`player::AudioTrackInfo`], never the encodable track, so the protocol
 //! [`Track`] for the current track and for the one it replaced is kept in [`PlayerShared`]. A
@@ -44,21 +39,19 @@ const GAPLESS_LOOKAHEAD_MS: u64 = 500;
 
 static UPDATE_INTERVAL_SECS: OnceLock<u64> = OnceLock::new();
 
-/// Record the configured `playerUpdateInterval`. Called once from `AppState::new`.
+/// Called once from `AppState::new`.
 pub fn set_update_interval(secs: u64) {
     let _ = UPDATE_INTERVAL_SECS.set(secs.max(1));
 }
 
-// The current track and the one it replaced, as protocol tracks.
 #[derive(Default)]
 struct TrackSlots {
     current: Option<Track>,
     previous: Option<Track>,
 }
 
-/// State shared between a [`LavalinkPlayer`] and the engine event listener it registers.
-///
-/// The owning [`SocketContext`] is held weakly, since it owns the player in turn.
+/// State shared between a [`LavalinkPlayer`] and the engine event listener it registers. The owning
+/// [`SocketContext`] is held weakly, since it owns the player in turn.
 pub struct PlayerShared {
     guild_id: u64,
     context: Weak<SocketContext>,
@@ -215,6 +208,8 @@ pub struct LavalinkPlayer {
     voice_state: Mutex<Option<VoiceState>>,
     // Serializes a whole `PATCH .../players/{guildId}` body.
     patch_lock: tokio::sync::Mutex<()>,
+    // Serializes voice handshakes, which run outside `patch_lock`.
+    voice_lock: tokio::sync::Mutex<()>,
     filters: Mutex<Filters>,
     crossfade_defaults: Option<CrossfadeOptions>,
     crossfade: Mutex<Option<CrossfadeOptions>>,
@@ -229,7 +224,6 @@ pub struct LavalinkPlayer {
 }
 
 impl LavalinkPlayer {
-    /// Create a player for `guild_id` owned by `context`.
     pub fn new(
         guild_id: u64,
         user_id: u64,
@@ -278,6 +272,7 @@ impl LavalinkPlayer {
             voice: Mutex::new(None),
             voice_state: Mutex::new(None),
             patch_lock: tokio::sync::Mutex::new(()),
+            voice_lock: tokio::sync::Mutex::new(()),
             filters: Mutex::new(Filters::default()),
             crossfade_defaults,
             crossfade: Mutex::new(crossfade_defaults),
@@ -307,7 +302,6 @@ impl LavalinkPlayer {
         self.shared.current_track()
     }
 
-    /// Whether the player holds a track and is not paused.
     pub fn is_playing(&self) -> bool {
         self.has_track() && !self.player.is_paused()
     }
@@ -322,10 +316,10 @@ impl LavalinkPlayer {
     /// End the current track with the `cleanup` reason if nothing has pulled a frame from it within
     /// `threshold_ms`. A no-op unless a track is loaded.
     ///
-    /// The engine records a request on every frame handed out, so this only fires when no voice send
-    /// loop is draining the player, for instance after its connection died without a close event the
-    /// client acted on. Without it the track stays active forever: a decode thread and an HTTP
-    /// connection leak, no track end is emitted, and the client's queue never advances.
+    /// The engine records a request per frame handed out, so this only fires when no voice send loop
+    /// is draining the player, e.g. its connection died without a close event the client acted on.
+    /// Without it the track stays active forever: a decode thread and an HTTP connection leak, no
+    /// track end is emitted, and the client's queue never advances.
     pub fn check_cleanup(&self, threshold_ms: u64) {
         self.player.check_cleanup(threshold_ms);
     }
@@ -334,13 +328,10 @@ impl LavalinkPlayer {
         self.player.position().unwrap_or(0) as i64
     }
 
-    /// Start playing `track`, already encoded as `proto`, replacing any current track.
     pub fn play(&self, track: Box<dyn AudioTrack>, proto: Track) {
         self.play_at(track, proto, 0);
     }
 
-    /// Start playing `track` at `position_ms`, replacing any current track.
-    ///
     /// Decoding begins at `position_ms`, so no audio from the start of the track leaks out before
     /// the seek takes effect.
     pub fn play_at(&self, track: Box<dyn AudioTrack>, proto: Track, position_ms: u64) {
@@ -372,14 +363,13 @@ impl LavalinkPlayer {
         self.arm_transition();
     }
 
-    /// Clear the per-player override and restore the server defaults.
     pub fn reset_crossfade(&self) {
         self.clear_all_transition_markers();
         *self.crossfade.lock().unwrap() = self.crossfade_defaults;
         self.arm_transition();
     }
 
-    /// Set the client-driven tape effect. `None`, the default, makes pause and resume instant.
+    /// `None`, the default, makes pause and resume instant.
     pub fn set_tape(&self, options: Option<TapeOptions>) {
         self.player.set_tape(options);
     }
@@ -391,7 +381,6 @@ impl LavalinkPlayer {
         self.player.stop_track();
     }
 
-    /// Seek to `position_ms` and emit a player update.
     pub fn seek(&self, position_ms: i64) {
         let position = position_ms.max(0) as u64;
         self.player.set_position(position);
@@ -407,19 +396,16 @@ impl LavalinkPlayer {
         self.player.set_volume(volume);
     }
 
-    /// Pause or resume playback.
     pub fn set_paused(&self, paused: bool) {
         self.player.set_paused(paused);
     }
 
-    /// Replace the filter chain and emit a player update.
     pub fn set_filters(&self, filters: Filters) {
         self.player.options().set_filters(filters.to_engine());
         *self.filters.lock().unwrap() = filters;
         self.send_player_update();
     }
 
-    /// Attach user data to the current track.
     pub fn set_user_data(&self, user_data: Map<String, Value>) {
         self.shared.set_user_data(user_data);
     }
@@ -458,25 +444,25 @@ impl LavalinkPlayer {
         }
     }
 
-    /// Serialize a player PATCH's mutations against every other PATCH for the same guild.
-    ///
-    /// Discord repeats `VOICE_SERVER_UPDATE` on a region change and clients PATCH once per event, so
-    /// without this two voice handshakes race and whichever finishes last wins the slot: a stale
-    /// connection displaces a fresh one and the guild goes silent. The same holds for a play racing
-    /// a stop or a seek.
+    /// Serialize a player PATCH's mutations against every other PATCH for the same guild, so a play
+    /// cannot race a stop or a seek.
     ///
     /// The caller resolves tracks before taking this, so it is never held across a network load, and
-    /// nothing called while the guard is held may re-acquire it.
+    /// nothing called while the guard is held may re-acquire it. The voice handshake is deliberately
+    /// outside it; see [`apply_voice`](LavalinkPlayer::apply_voice).
     pub async fn lock_patch(&self) -> tokio::sync::MutexGuard<'_, ()> {
         self.patch_lock.lock().await
     }
 
     /// Apply a voice state, reconnecting to Discord if the connection details changed.
     ///
-    /// Async because the gateway and UDP handshake happen here; no `std::sync::Mutex` is held across
-    /// the await. Serializing against other PATCHes is the caller's job through
-    /// [`lock_patch`](LavalinkPlayer::lock_patch).
+    /// Takes `voice_lock` rather than the patch lock, so a play PATCH can start its decode thread
+    /// while this handshake is still in flight. Two handshakes must still be serialized against each
+    /// other, or whichever finishes last wins the slot and a stale connection displaces a fresh one.
+    ///
+    /// No `std::sync::Mutex` is held across the await.
     pub async fn apply_voice(&self, voice: VoiceState) -> Result<(), RestError> {
+        let _serialized = self.voice_lock.lock().await;
         let needs_reconnect = {
             let current = self.voice_state.lock().unwrap();
             match current.as_ref() {
@@ -542,15 +528,12 @@ impl LavalinkPlayer {
         }
     }
 
-    /// Send a player update to the owning context, if it is still alive.
     pub fn send_player_update(&self) {
         if let Some(context) = self.shared.context.upgrade() {
             context.send_message(self.player_update_message());
         }
     }
 
-    // Arm this player's periodic update timer, phased to now.
-    //
     // One timer per player, rather than a node-wide ticker: a shared ticker phases every guild to
     // process start, so a track beginning just after a tick waits out the rest of the interval
     // before its first periodic update. The first tick here fires immediately.
@@ -583,7 +566,6 @@ impl LavalinkPlayer {
         }
     }
 
-    // The live state, reading connection status and heartbeat ping from the voice connection.
     fn current_state(&self) -> PlayerState {
         let position = self.position();
         let guard = self.voice.lock().unwrap();
@@ -613,7 +595,6 @@ impl LavalinkPlayer {
         self.voice_state.lock().unwrap().clone().unwrap_or_default()
     }
 
-    /// A full protocol snapshot of this player, as returned by the REST API.
     pub fn snapshot(&self) -> Player {
         let state = self.current_state();
         let track = self.shared.current_track().map(|mut track| {
@@ -637,7 +618,6 @@ impl LavalinkPlayer {
         }
     }
 
-    /// The live-lyrics handle, if the lyrics feature is enabled.
     pub fn lyrics(&self) -> Option<&Arc<PlayerLyrics>> {
         self.lyrics.as_ref()
     }
@@ -655,7 +635,6 @@ impl LavalinkPlayer {
         true
     }
 
-    /// Unsubscribe from live lyrics. Returns `false` when lyrics are disabled.
     pub fn unsubscribe_lyrics(&self) -> bool {
         let Some(lyrics) = &self.lyrics else {
             return false;
@@ -664,7 +643,6 @@ impl LavalinkPlayer {
         true
     }
 
-    /// Stop playback and tear the voice connection down.
     pub fn destroy(&self) {
         self.stop_update_task();
         if let Some(lyrics) = &self.lyrics {

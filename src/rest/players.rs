@@ -78,7 +78,6 @@ pub async fn patch_player(
         .map(|v| v == "true")
         .unwrap_or(false);
 
-    // Reject conflicting track specifications.
     let has_track = update.track.is_present();
     let has_legacy = update.encoded_track.is_present() || update.identifier.is_present();
     if has_track && has_legacy {
@@ -99,7 +98,6 @@ pub async fn patch_player(
         ));
     }
 
-    // Reject filters disabled in config.
     if let Omissible::Present(filters) = &update.filters {
         let disabled = state.config().lavalink.server.disabled_filters();
         let rejected: Vec<String> = filters
@@ -115,7 +113,6 @@ pub async fn patch_player(
         }
     }
 
-    // Validate the voice state.
     if let Omissible::Present(voice) = &update.voice {
         if !voice.is_complete() {
             return Err(RestError::bad_request(
@@ -124,7 +121,6 @@ pub async fn patch_player(
         }
     }
 
-    // Validate endTime.
     if let Omissible::Present(Some(end_time)) = &update.end_time {
         if *end_time <= 0 {
             return Err(RestError::bad_request("endTime must be greater than 0"));
@@ -175,6 +171,12 @@ pub async fn patch_player(
         None
     };
 
+    // Voice first, and outside the patch lock: holding that across the handshake's round-trips parks
+    // the play PATCH behind it, delaying the decode thread. `apply_voice` serializes against itself.
+    if let Omissible::Present(voice) = update.voice {
+        player.apply_voice(voice).await?;
+    }
+
     // Serialise the mutations per guild so a concurrent PATCH can't interleave halfway through.
     let _serialized = player.lock_patch().await;
 
@@ -210,11 +212,6 @@ pub async fn patch_player(
         }
     }
 
-    // Voice first, so a subsequent play has a live connection.
-    if let Omissible::Present(voice) = update.voice {
-        player.apply_voice(voice).await?;
-    }
-
     // Field order: paused, userData, volume, position, endTime, filters, then the load. The first
     // four apply here only when no track is being loaded.
     if !updating_track {
@@ -244,7 +241,6 @@ pub async fn patch_player(
         player.set_filters(filters);
     }
 
-    // Track load / replace / stop.
     if updating_track {
         // Another PATCH may have started a track while we were resolving, unlocked, above.
         if no_replace && player.has_track() {
