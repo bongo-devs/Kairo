@@ -125,7 +125,6 @@ fn handle_markable_at(
     arm_next(player_weak, context_weak, guild_id, markables, index);
 }
 
-// Arm the marker for the markable after `index`, if there is one.
 fn arm_next(
     player_weak: &Weak<AudioPlayer>,
     context_weak: &Weak<SocketContext>,

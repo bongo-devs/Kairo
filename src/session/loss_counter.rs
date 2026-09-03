@@ -1,23 +1,14 @@
-//! Per-player audio-loss accounting.
-//!
-//! Each 20 ms frame the player provides is recorded as a success, each frame it had nothing ready
-//! for as a loss. Counts accumulate per minute and rotate into a last-full-minute bucket, which is
-//! what the node's `frameStats` are derived from.
-//!
-//! [`is_data_usable`](AudioLossCounter::is_data_usable) gates whether a player contributes at all:
-//! one that only just started or resumed has no full minute of data yet, and a real gap in playback
-//! makes the bucket meaningless.
+//! Per-player audio-loss accounting: a provided 20 ms frame is a success, a missing one a loss, rotated per minute into the
+//! last-full-minute bucket `frameStats` derive from. `is_data_usable` excludes a player with no full minute yet or a real gap.
 
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-/// Expected number of 20 ms frames per minute.
 pub const EXPECTED_PACKET_COUNT_PER_MIN: i64 = 60 * 1000 / 20;
 
 // How long a stop and the next start may be apart while still counting as a seamless switch.
 const ACCEPTABLE_TRACK_SWITCH_TIME: Duration = Duration::from_millis(100);
 
-/// Counts sent against nulled frames over a one-minute sliding window.
 pub struct AudioLossCounter {
     start: Instant,
     inner: Mutex<Inner>,
@@ -49,14 +40,12 @@ impl AudioLossCounter {
         inner.rotate_to(self.start.elapsed().as_secs() / 60);
     }
 
-    /// Record a frame that went out.
     pub fn record_success(&self) {
         let mut inner = self.inner.lock().unwrap();
         self.rotate(&mut inner);
         inner.cur_success += 1;
     }
 
-    /// Record a frame the player had no audio ready for.
     pub fn record_loss(&self) {
         let mut inner = self.inner.lock().unwrap();
         self.rotate(&mut inner);
@@ -70,7 +59,6 @@ impl AudioLossCounter {
         (inner.last_success, inner.last_loss)
     }
 
-    /// Playback started or resumed.
     pub fn on_playback_started(&self) {
         let now = self.start.elapsed();
         let mut inner = self.inner.lock().unwrap();
@@ -86,13 +74,11 @@ impl AudioLossCounter {
         }
     }
 
-    /// Playback stopped or paused.
     pub fn on_playback_stopped(&self) {
         let now = self.start.elapsed();
         self.inner.lock().unwrap().last_track_ended = Some(now);
     }
 
-    /// Whether this player's last-minute bucket is worth reporting.
     pub fn is_data_usable(&self) -> bool {
         self.inner
             .lock()
@@ -102,11 +88,8 @@ impl AudioLossCounter {
 }
 
 impl Inner {
-    // Roll the current-minute counters into the last-minute bucket when `minute` is a new one.
-    //
-    // A jump of more than one minute means nothing was recorded in between, so the last complete
-    // minute really is empty; carrying the older bucket forward would report counts from minutes ago
-    // as the current ones.
+    // Roll the current-minute counters into the last-minute bucket on a new minute. A jump of over one
+    // minute means nothing was recorded in between, so report empty rather than counts from minutes ago.
     fn rotate_to(&mut self, minute: u64) {
         if minute == self.current_minute {
             return;

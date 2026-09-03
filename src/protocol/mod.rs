@@ -1,11 +1,5 @@
-//! The Lavalink v4 JSON wire protocol.
-//!
-//! Every type here serialises to the same JSON a Lavalink v4 node produces, down to field casing
-//! (`#[serde(rename_all = "camelCase")]` plus explicit renames where they differ), so existing
-//! clients work unchanged.
-//!
-//! Payloads that patch existing state use [`Omissible`](omissible::Omissible) to tell an absent
-//! field, meaning leave unchanged, from a `null` one, meaning clear.
+//! The Lavalink v4 wire protocol; types match a v4 node's JSON field casing, so clients work unchanged.
+//! Patch payloads use [`Omissible`](omissible::Omissible): absent leaves unchanged, `null` clears.
 
 pub mod filters;
 pub mod info;

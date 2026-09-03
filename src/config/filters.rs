@@ -2,7 +2,6 @@
 
 use serde::Deserialize;
 
-/// Filter toggles, all on by default.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct FiltersToggleConfig {

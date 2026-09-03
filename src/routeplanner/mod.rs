@@ -1,7 +1,5 @@
-//! IP rotation for outbound HTTP requests, configured under `lavalink.server.ratelimit`.
-//!
-//! Each strategy hands the HTTP stack a source address to bind, and an address that comes back
-//! rate-limited is marked failing and skipped until it expires.
+//! IP rotation for outbound requests, configured under `lavalink.server.ratelimit`. Each strategy
+//! hands the HTTP stack a source address to bind; a rate-limited one is skipped until it expires.
 
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -32,7 +30,6 @@ const BLOCK64_IPS: u128 = 1u128 << 64;
 // ever shrinks.
 const FAILING_TIME_MILLIS: i64 = 7 * 24 * 60 * 60 * 1000;
 
-// A parsed CIDR block.
 #[derive(Debug, Clone)]
 struct IpBlock {
     // Network base address as an integer, IPv4 mapped into the low 32 bits.
@@ -113,7 +110,6 @@ impl IpBlock {
     }
 }
 
-/// An IP route planner over one or more CIDR blocks.
 pub struct IpRoutePlanner {
     blocks: Vec<IpBlock>,
     total_size: u128,
@@ -220,9 +216,8 @@ impl IpRoutePlanner {
     fn is_failing(&self, address: &IpAddr) -> bool {
         let mut failing = self.failing.lock().unwrap();
         match failing.get(address) {
-            // An expired entry is dropped and the address retried. Only the address asked about:
-            // this runs up to `MAX_SCAN` times per request, so walking the whole map here would
-            // make every scan step O(n).
+            // An expired entry is dropped and the address retried. Only the one asked about: this
+            // runs up to `MAX_SCAN` times per request, so walking the map makes every step O(n).
             Some(&at) if at < expiry_cutoff() => {
                 failing.remove(address);
                 false
@@ -248,9 +243,8 @@ impl IpRoutePlanner {
         (self.address_at_global(offset), offset)
     }
 
-    // The `RotateOnBan` address. The pick is sticky until a ban sets `rotate_pending`; a fresh pick
-    // jumps a random 10..19 addresses on a block wider than 128 so a ban does not land on the
-    // neighbouring, most likely equally rate-limited address, then scans forward from there.
+    // Sticky until a ban sets `rotate_pending`; a fresh pick jumps a random 10..19 addresses ahead
+    // on a pool over 128, to skip the neighbouring and likely equally rate-limited address.
     fn rotate_on_ban_address(&self) -> IpAddr {
         // `current` before `failing` (through `is_failing`), the lock order used everywhere here.
         let mut current = self.current.lock().unwrap();
@@ -356,12 +350,10 @@ impl IpRoutePlanner {
             .collect()
     }
 
-    /// Stop treating `address` as failing. `true` if it was.
     pub fn free_address(&self, address: &IpAddr) -> bool {
         self.failing.lock().unwrap().remove(address).is_some()
     }
 
-    /// Stop treating every address as failing.
     pub fn free_all(&self) {
         self.failing.lock().unwrap().clear();
     }
@@ -400,9 +392,8 @@ impl RoutePlanner for IpRoutePlanner {
     fn mark_failing(&self, address: IpAddr) {
         {
             let mut failing = self.failing.lock().unwrap();
-            // Prune here rather than only when the status endpoint is polled: an unpolled node on a
-            // large block would otherwise keep an entry per banned address forever, and a ban is
-            // the only moment the map grows.
+            // Prune here, not just on a status poll: an unpolled node on a large block would
+            // otherwise keep every banned address forever, and a ban is the only moment it grows.
             prune_expired(&mut failing);
             failing.insert(address, now_millis());
         }
@@ -511,7 +502,6 @@ mod tests {
         assert!(IpBlock::parse("10.0.0.0/x").is_none());
     }
 
-    // A bare address is a one-address block rather than a config error.
     #[test]
     fn bare_address_is_a_single_address_block() {
         let v4 = IpBlock::parse("1.2.3.4").unwrap();
@@ -533,7 +523,6 @@ mod tests {
         ))
         .unwrap();
 
-        // Sticky: the same address until it's banned.
         assert_eq!(planner.next_address(), Some(ip("10.0.0.0")));
         assert_eq!(planner.next_address(), Some(ip("10.0.0.0")));
 
@@ -715,7 +704,6 @@ mod tests {
             RatelimitStrategy::NanoSwitch,
         ))
         .unwrap();
-        // The clock is the index, so no two requests share an address without a ban.
         let first = planner.next_address().unwrap();
         assert_ne!(first, planner.next_address().unwrap());
     }

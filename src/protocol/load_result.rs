@@ -1,8 +1,6 @@
-//! The result of loading an identifier.
-//!
-//! The wire shape is `{ "loadType": <tag>, "data": <payload> }`, and the payload differs per tag: a
-//! track, a playlist, an array of tracks, `null`, or an exception. [`Serialize`] is written by hand
-//! so `empty` emits `"data": null` instead of dropping the key.
+//! Wire shape is `{ "loadType": <tag>, "data": <payload> }`, the payload differing per tag: a
+//! track, a playlist, an array of tracks, `null`, or an exception. [`Serialize`] is hand-written so
+//! `empty` emits `"data": null` instead of dropping the key.
 
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
@@ -13,15 +11,12 @@ use crate::protocol::track::Track;
 /// The result of loading an identifier.
 #[derive(Debug, Clone)]
 pub enum LoadResult {
-    /// A single track was loaded.
     Track(Track),
-    /// A playlist was loaded.
     Playlist(Playlist),
     /// A search returned a list of tracks.
     Search(Vec<Track>),
     /// Nothing matched the identifier.
     Empty,
-    /// Loading failed.
     Error(Exception),
 }
 
@@ -55,24 +50,19 @@ impl Serialize for LoadResult {
     }
 }
 
-/// A loaded playlist.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Playlist {
-    /// Playlist metadata.
     pub info: PlaylistInfo,
     /// Plugin provided info, default `{}`.
     #[serde(default)]
     pub plugin_info: Map<String, Value>,
-    /// The tracks in the playlist.
     pub tracks: Vec<Track>,
 }
 
-/// Playlist metadata.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlaylistInfo {
-    /// The playlist name.
     pub name: String,
     /// The index of the selected track, or `-1` if none.
     pub selected_track: i32,
@@ -84,7 +74,6 @@ pub struct PlaylistInfo {
 pub struct Exception {
     /// A user-facing message, if any.
     pub message: Option<String>,
-    /// The severity.
     pub severity: Severity,
     /// The technical cause.
     pub cause: String,

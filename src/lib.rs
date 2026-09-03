@@ -1,9 +1,5 @@
-//! A Lavalink v4 compatible audio node.
-//!
-//! The crate is the node's control plane: [`rest`] serves the HTTP API and the WebSocket, [`session`]
-//! owns the players behind it, [`node`] holds the state they share, and [`config`] reads the
-//! `application.yml` all three are configured from. Audio decoding and voice transport live in the
-//! `player` and `voice` crates.
+//! A Lavalink v4 compatible audio node: this crate is the control plane (HTTP API, WebSocket,
+//! players, config), while audio decoding and voice transport live in the `player`/`voice` crates.
 
 pub mod config;
 pub mod node;

@@ -1,7 +1,5 @@
-//! Live lyrics for one player: fetch them when a track starts, then emit an event per synced line.
-//!
-//! All of the state lives in a per-player coordinator task, so the only way to change it is to send
-//! that task a command. Two epoch counters invalidate work a track change or a seek made stale.
+//! Live lyrics for one player: fetch them when a track starts, then emit an event per synced line. All state
+//! lives in a per-player coordinator task reachable only by command; two epoch counters invalidate stale work.
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Weak};
@@ -68,7 +66,6 @@ enum LyricsCmd {
         query_source: String,
         data: Option<Box<LyricsData>>,
     },
-    // A synced-line marker fired during playback.
     LineFired {
         sync_epoch: u64,
         line_idx: usize,
@@ -79,7 +76,6 @@ enum LyricsCmd {
         sync_epoch: u64,
         position_ms: u64,
     },
-    // Drop all lyrics state and remove any armed marker.
     Clear,
 }
 
@@ -213,7 +209,6 @@ impl CoordinatorState {
         }
     }
 
-    // The synced lines, if the loaded lyrics are timed.
     fn lines(&self) -> Option<&Vec<::lyrics::LyricsLine>> {
         self.data.as_ref().and_then(|d| d.lines.as_ref())
     }
@@ -232,7 +227,6 @@ async fn coordinator(
     let guild = guild_id.to_string();
 
     while let Some(cmd) = rx.recv().await {
-        // If the owning context is gone, there is nothing left to serve.
         let Some(context) = context.upgrade() else {
             break;
         };
@@ -318,7 +312,6 @@ async fn coordinator(
     }
 }
 
-// The active track's position in milliseconds, `0` when the player is gone or idle.
 fn player_position(player: &Weak<AudioPlayer>) -> u64 {
     player.upgrade().and_then(|p| p.position()).unwrap_or(0)
 }
@@ -329,7 +322,6 @@ fn remove_marker(player: &Weak<AudioPlayer>, id: Option<player::track::marker::M
     }
 }
 
-// Emit a line event and record it as the last line emitted.
 fn emit_line(
     state: &mut CoordinatorState,
     context: &Arc<SocketContext>,

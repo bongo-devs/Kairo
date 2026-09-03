@@ -6,15 +6,12 @@ use player::ResamplingQuality as EngineResamplingQuality;
 
 use super::filters::FiltersToggleConfig;
 
-/// The `lavalink` block.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct LavalinkConfig {
-    /// The `lavalink.server` block.
     pub server: LavalinkServerConfig,
 }
 
-/// The audio engine and protocol settings.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct LavalinkServerConfig {
@@ -24,13 +21,11 @@ pub struct LavalinkServerConfig {
     pub buffer_duration_ms: i32,
     /// Non-allocating frame buffer toggle. Accepted for compatibility, unused.
     pub non_allocating_frame_buffer: bool,
-    /// Audio frame buffer duration in milliseconds.
     pub frame_buffer_duration_ms: u64,
     /// Opus encoder complexity, `0..=10`.
     pub opus_encoding_quality: u8,
     /// Opus target bitrate in bits per second.
     pub opus_bitrate: i32,
-    /// Resampling quality.
     pub resampling_quality: ResamplingQuality,
     /// Milliseconds without a frame before a `TrackStuck` event fires.
     pub track_stuck_threshold_ms: u64,
@@ -77,11 +72,9 @@ pub struct RatelimitConfig {
     pub ip_blocks: Vec<String>,
     /// Addresses within those blocks to never use.
     pub excluded_ips: Vec<String>,
-    /// The rotation strategy.
     pub strategy: RatelimitStrategy,
     /// Whether a search `429` marks the address as failing. Searches are rate limited far more
-    /// often than playback requests, so leaving this off keeps them from burning through the block.
-    /// The request is retried either way.
+    /// often than playback, so off keeps them from burning through the block; retried either way.
     pub search_triggers_fail: bool,
     /// Retries before a rate-limited request gives up. A negative value takes the rotator default
     /// of 10, and `0` means unlimited.
@@ -107,8 +100,7 @@ impl RatelimitConfig {
         !self.ip_blocks.is_empty()
     }
 
-    /// Attempts per request, one more than `retryLimit`, which counts retries. A negative limit
-    /// takes the rotator default of 10 retries and `0` means unlimited.
+    /// Attempts per request, one more than `retryLimit`, which counts retries.
     pub fn retry_attempts(&self) -> u32 {
         match self.retry_limit {
             n if n < 0 => player::tools::http_config::DEFAULT_RETRY_ATTEMPTS,
@@ -156,21 +148,16 @@ impl<'de> Deserialize<'de> for RatelimitStrategy {
 pub struct HttpConfig {
     /// Proxy host, empty to send requests directly.
     pub proxy_host: String,
-    /// Proxy port.
     pub proxy_port: u16,
-    /// Proxy basic-auth username, if the proxy needs one.
     pub proxy_user: String,
-    /// Proxy basic-auth password, if the proxy needs one.
     pub proxy_password: String,
 }
 
 impl HttpConfig {
-    /// Whether a proxy host is set.
     pub fn is_enabled(&self) -> bool {
         !self.proxy_host.is_empty()
     }
 
-    /// Build a [`player::tools::http_config::HttpProxyConfig`] from these settings, if enabled.
     pub fn to_proxy(&self) -> Option<player::tools::http_config::HttpProxyConfig> {
         if !self.is_enabled() {
             return None;
@@ -221,7 +208,6 @@ impl TimeoutsConfig {
 }
 
 impl LavalinkServerConfig {
-    /// The names of the filters disabled in config.
     pub fn disabled_filters(&self) -> Vec<String> {
         self.filters.disabled()
     }
@@ -231,9 +217,7 @@ impl LavalinkServerConfig {
 #[derive(Debug, Clone, Copy, Default, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum ResamplingQuality {
-    /// Highest quality.
     High,
-    /// Balanced.
     Medium,
     /// Linear interpolation, the default.
     #[default]
@@ -241,7 +225,6 @@ pub enum ResamplingQuality {
 }
 
 impl ResamplingQuality {
-    /// Map to the engine's resampling quality.
     pub fn to_engine(self) -> EngineResamplingQuality {
         match self {
             ResamplingQuality::High => EngineResamplingQuality::High,

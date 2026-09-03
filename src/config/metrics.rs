@@ -2,11 +2,9 @@
 
 use serde::Deserialize;
 
-/// The `metrics` block.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct MetricsConfig {
-    /// The `metrics.prometheus` block.
     pub prometheus: PrometheusConfig,
 }
 
@@ -14,9 +12,7 @@ pub struct MetricsConfig {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct PrometheusConfig {
-    /// Whether the metrics endpoint is served at all.
     pub enabled: bool,
-    /// The endpoint path, `/metrics` by default.
     pub endpoint: String,
 }
 

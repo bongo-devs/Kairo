@@ -7,15 +7,12 @@ use std::time::Duration;
 
 use tokio::task::JoinHandle;
 
-/// The process-wide task registry.
 pub static TASKS: LazyLock<Tasks> = LazyLock::new(Tasks::default);
 
-/// The key of a session's stats ticker.
 pub fn session_stats(session_id: &str) -> String {
     format!("stats:{session_id}")
 }
 
-/// Interval tasks held by key, each cancelled when it is removed or replaced.
 #[derive(Default)]
 pub struct Tasks {
     runners: Mutex<BTreeMap<String, JoinHandle<()>>>,
@@ -43,7 +40,6 @@ impl Tasks {
         }
     }
 
-    /// Cancel the task registered under `key`, if any.
     pub fn remove(&self, key: &str) {
         if let Some(runner) = self.runners.lock().unwrap().remove(key) {
             runner.abort();

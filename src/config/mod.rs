@@ -28,19 +28,12 @@ use player::AudioConfiguration;
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct Config {
-    /// The HTTP listener, `server.*`.
     pub server: ServerConfig,
-    /// Node settings, `lavalink.*`.
     pub lavalink: LavalinkConfig,
-    /// This server's own logging, `logging.*`.
     pub logging: LoggingConfig,
-    /// Every source toggle and per-source setting, `sources.*`.
     pub sources: SourcesConfig,
-    /// Track transition defaults, `crossfade.*`.
     pub crossfade: CrossfadeConfig,
-    /// Lyrics providers, `lyrics.*`.
     pub lyrics: LyricsServerConfig,
-    /// Prometheus metrics, `metrics.*`.
     pub metrics: MetricsConfig,
 }
 
@@ -61,7 +54,6 @@ impl Config {
             .unwrap_or_else(|e| panic!("Failed to parse config '{}': {}", path, e))
     }
 
-    /// Build the engine-wide [`AudioConfiguration`] from these settings.
     pub fn audio_configuration(&self) -> AudioConfiguration {
         let server = &self.lavalink.server;
         let mut config = AudioConfiguration {

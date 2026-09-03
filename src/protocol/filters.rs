@@ -1,49 +1,34 @@
-//! The `filters` payload and its sub-filters.
-//!
-//! These are the wire types only. The DSP lives in the [`player`] crate, and
-//! [`Filters::to_engine`] hands the payload over through a JSON hop, since the field names line up.
-//!
-//! A sub-filter that is present serialises all of its fields, defaults included. One that was
-//! never set stays `None` and is left out.
+//! Wire types only. The DSP lives in the [`player`] crate, and [`Filters::to_engine`] hands the
+//! payload over through a JSON hop since the field names line up. A present sub-filter serialises
+//! all of its fields, defaults included; one never set stays `None` and is left out.
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-/// The aggregate filter object.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Filters {
     /// Filter volume multiplier, separate from the player's own volume.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub volume: Option<f32>,
-    /// 15-band equalizer.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub equalizer: Option<Vec<Band>>,
-    /// Karaoke, or vocal removal.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub karaoke: Option<Karaoke>,
-    /// Speed, pitch and rate.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timescale: Option<Timescale>,
-    /// Amplitude modulation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tremolo: Option<Tremolo>,
-    /// Pitch modulation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vibrato: Option<Vibrato>,
-    /// Trig waveshaper distortion.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub distortion: Option<Distortion>,
-    /// Auto-pan rotation, also known as 8D audio.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rotation: Option<Rotation>,
-    /// Stereo channel mix matrix.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub channel_mix: Option<ChannelMix>,
-    /// One-pole low-pass.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub low_pass: Option<LowPass>,
-    /// Filters provided by plugins, left out when empty.
     #[serde(default, skip_serializing_if = "Map::is_empty")]
     pub plugin_filters: Map<String, Value>,
 }
@@ -86,10 +71,8 @@ impl Filters {
         names
     }
 
-    /// Convert into the engine's filter config. Plugin filters are ignored by the engine.
-    ///
-    /// Every engine field has a serde default, so a schema drift would reset the whole chain
-    /// instead of failing anywhere visible. Hence the loud log.
+    /// Convert into the engine's filter config; plugin filters are ignored by the engine. Every
+    /// engine field has a serde default, so schema drift silently resets the chain, hence the log.
     pub fn to_engine(&self) -> player::filter::config::FilterConfig {
         match serde_json::to_value(self).and_then(serde_json::from_value) {
             Ok(config) => config,
@@ -107,9 +90,7 @@ impl Filters {
 /// A single equalizer band: `{ "band": 0..=14, "gain": -0.25..=1.0 }`.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Band {
-    /// Band index, `0..=14`.
     pub band: u32,
-    /// Band gain, default `1.0`.
     #[serde(default = "one_f32")]
     pub gain: f32,
 }
@@ -118,30 +99,23 @@ pub struct Band {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Karaoke {
-    /// Effect level, default `1.0`.
     #[serde(default = "one_f32")]
     pub level: f32,
-    /// Mono effect level, default `1.0`.
     #[serde(default = "one_f32")]
     pub mono_level: f32,
-    /// Filter band in Hz, default `220.0`.
+    /// Filter band in Hz.
     #[serde(default = "f32_220")]
     pub filter_band: f32,
-    /// Filter width, default `100.0`.
     #[serde(default = "f32_100")]
     pub filter_width: f32,
 }
 
-/// Timescale filter: speed, pitch and rate.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Timescale {
-    /// Playback speed, default `1.0`.
     #[serde(default = "one_f64")]
     pub speed: f64,
-    /// Pitch, default `1.0`.
     #[serde(default = "one_f64")]
     pub pitch: f64,
-    /// Rate, default `1.0`.
     #[serde(default = "one_f64")]
     pub rate: f64,
 }
@@ -149,10 +123,10 @@ pub struct Timescale {
 /// Tremolo, or amplitude modulation, filter.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Tremolo {
-    /// Frequency in Hz, default `2.0`.
+    /// Frequency in Hz.
     #[serde(default = "f32_2")]
     pub frequency: f32,
-    /// Depth `0.0..=1.0`, default `0.5`.
+    /// Depth `0.0..=1.0`.
     #[serde(default = "f32_half")]
     pub depth: f32,
 }
@@ -160,10 +134,10 @@ pub struct Tremolo {
 /// Vibrato, or pitch modulation, filter.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Vibrato {
-    /// Frequency in Hz, default `2.0`.
+    /// Frequency in Hz.
     #[serde(default = "f32_2")]
     pub frequency: f32,
-    /// Depth `0.0..=1.0`, default `0.5`.
+    /// Depth `0.0..=1.0`.
     #[serde(default = "f32_half")]
     pub depth: f32,
 }
@@ -172,7 +146,7 @@ pub struct Vibrato {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Rotation {
-    /// Rotation speed in Hz, default `0.0`.
+    /// Rotation speed in Hz.
     #[serde(default)]
     pub rotation_hz: f64,
 }
@@ -181,46 +155,33 @@ pub struct Rotation {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Distortion {
-    /// Sine offset, default `0.0`.
     #[serde(default)]
     pub sin_offset: f32,
-    /// Sine scale, default `1.0`.
     #[serde(default = "one_f32")]
     pub sin_scale: f32,
-    /// Cosine offset, default `0.0`.
     #[serde(default)]
     pub cos_offset: f32,
-    /// Cosine scale, default `1.0`.
     #[serde(default = "one_f32")]
     pub cos_scale: f32,
-    /// Tangent offset, default `0.0`.
     #[serde(default)]
     pub tan_offset: f32,
-    /// Tangent scale, default `1.0`.
     #[serde(default = "one_f32")]
     pub tan_scale: f32,
-    /// Output offset, default `0.0`.
     #[serde(default)]
     pub offset: f32,
-    /// Output scale, default `1.0`.
     #[serde(default = "one_f32")]
     pub scale: f32,
 }
 
-/// Stereo channel mix matrix filter.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ChannelMix {
-    /// Left channel into the left output, default `1.0`.
     #[serde(default = "one_f32")]
     pub left_to_left: f32,
-    /// Left channel into the right output, default `0.0`.
     #[serde(default)]
     pub left_to_right: f32,
-    /// Right channel into the left output, default `0.0`.
     #[serde(default)]
     pub right_to_left: f32,
-    /// Right channel into the right output, default `1.0`.
     #[serde(default = "one_f32")]
     pub right_to_right: f32,
 }
@@ -228,7 +189,6 @@ pub struct ChannelMix {
 /// One-pole low-pass filter.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct LowPass {
-    /// Smoothing factor, default `20.0`.
     #[serde(default = "f32_20")]
     pub smoothing: f32,
 }

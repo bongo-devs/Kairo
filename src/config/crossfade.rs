@@ -1,24 +1,18 @@
-//! `crossfade.*`, the track transition defaults.
-//!
-//! These are node-wide, and a client can override them per player through the `crossfade` field of
-//! a player update. With both crossfade and gapless off, a track simply ends with reason `finished`
-//! and the client starts the next one.
+//! `crossfade.*`, node-wide transition defaults; a client can override them per player through the
+//! `crossfade` field of a player update. Both off: a track ends with reason `finished`.
 
 use serde::Deserialize;
 
 use player::{CrossfadeCurve as EngineCrossfadeCurve, CrossfadeOptions};
 
-/// The `crossfade` block.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CrossfadeConfig {
-    /// Whether to fade the outgoing and incoming tracks over each other on a transition.
     pub enable: bool,
     /// Overlap length in milliseconds, used when `enable` is set.
     pub duration_ms: u64,
     /// Overlap length in milliseconds for an explicit manual skip.
     pub manual_duration_ms: u64,
-    /// Fade easing.
     pub curve: CrossfadeCurve,
     /// Whether to fall back to a zero-gap handoff when a fade is off or cannot apply, as with a
     /// track that is too short, not seekable or of unknown length. On by default.
@@ -39,8 +33,7 @@ impl Default for CrossfadeConfig {
 
 impl CrossfadeConfig {
     /// The transition options in effect, or `None` when neither a fade nor a gapless handoff is
-    /// wanted. A fade uses `duration_ms` and `curve`, while a gapless handoff is the same
-    /// transition with a zero overlap.
+    /// wanted. A gapless handoff is the same transition with a zero overlap.
     pub fn to_engine(&self) -> Option<CrossfadeOptions> {
         if self.enable {
             if self.duration_ms == 0 && !self.gapless {
@@ -65,11 +58,9 @@ impl CrossfadeConfig {
     }
 }
 
-/// Fade easing as written in YAML.
 #[derive(Debug, Clone, Copy, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum CrossfadeCurve {
-    /// Straight ramp.
     Linear,
     /// Fast start, slow end, `x²`.
     Exp,
@@ -124,7 +115,6 @@ gapless: true
         assert!(cfg.gapless);
         assert_eq!(cfg.duration_ms, 6000);
         assert_eq!(cfg.manual_duration_ms, 3500);
-        // No fade but gapless on still transitions, with a zero overlap.
         let engine = cfg.to_engine().expect("gapless alone has options");
         assert!(engine.is_gapless());
     }

@@ -1,8 +1,5 @@
-//! The Prometheus metrics endpoint.
-//!
-//! Exposes the node's `lavalink_*` gauges in the Prometheus text exposition format, version 0.0.4.
-//! Gated on `metrics.prometheus.enabled`, registered at `metrics.prometheus.endpoint`, and exempt
-//! from auth so a scraper needs no credentials.
+//! The node's `lavalink_*` gauges in the Prometheus text exposition format 0.0.4. Gated on
+//! `metrics.prometheus.enabled` and exempt from auth so a scraper needs no credentials.
 
 use std::fmt::Write;
 
@@ -89,7 +86,6 @@ fn render(stats: &Stats) -> String {
     out
 }
 
-// Append one gauge family to `out`: its `# HELP` line, its `# TYPE` line, then the value.
 fn gauge(out: &mut String, name: &str, help: &str, value: f64) {
     // `writeln!` to a String is infallible.
     let _ = writeln!(out, "# HELP {name} {help}");

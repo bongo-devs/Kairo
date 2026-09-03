@@ -128,17 +128,14 @@ impl AppState {
         &self.inner.sockets
     }
 
-    /// Node uptime in milliseconds.
     pub fn uptime_ms(&self) -> i64 {
         self.inner.start_time.elapsed().as_millis() as i64
     }
 
-    /// The source manager names enabled in config.
     pub fn source_names(&self) -> Vec<String> {
         self.inner.config.sources.source_names()
     }
 
-    /// The enabled lyrics provider names, or empty when the feature is disabled.
     pub fn lyrics_provider_names(&self) -> Vec<String> {
         if self.inner.lyrics_service.is_some() {
             self.inner.config.lyrics.provider_names()
@@ -147,7 +144,6 @@ impl AppState {
         }
     }
 
-    /// Build the node [`Stats`], optionally with per-session frame stats.
     pub fn build_stats(&self, frame_stats: Option<crate::protocol::stats::FrameStats>) -> Stats {
         Stats {
             frame_stats,
@@ -159,8 +155,6 @@ impl AppState {
         }
     }
 
-    /// Start this session's `stats` timer, firing immediately and then once a minute.
-    ///
     /// Per-session rather than one node-wide loop because `frameStats` are per-session, and this way
     /// the timer is cancelled along with the session it belongs to.
     pub fn arm_session_stats(&self, context: &Arc<SocketContext>) {

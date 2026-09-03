@@ -1,26 +1,11 @@
-//! The three-state wrapper for fields that may be left out of a payload.
-//!
-//! A field of type `Omissible<T>` separates three wire states:
-//!
-//! - absent from the JSON: [`Omissible::Omitted`], meaning leave unchanged
-//! - present as `null`: `Omissible::Present(None)` when `T = Option<U>`, meaning clear
-//! - present with a value: `Omissible::Present(value)`, meaning set
-//!
-//! Serde drives the absent versus present split, so every field of this type needs
-//! `#[serde(default)]`: a missing key falls back to [`Default`], a present one runs the
-//! [`Deserialize`] impl below, which always yields `Present`.
-//!
-//! Deserialize only, since the types holding one are inbound payloads and there is nothing to
-//! leave out on the way back.
+//! `Omissible<T>` tells absent (`Omitted`, leave unchanged) from `null` (`Present(None)`, clear)
+//! from a value (`Present`, set). Every field needs `#[serde(default)]`.
 
 use serde::{Deserialize, Deserializer};
 
-/// A value that may be omitted from a JSON payload entirely.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum Omissible<T> {
-    /// The field was present in the payload.
     Present(T),
-    /// The field was absent from the payload.
     #[default]
     Omitted,
 }

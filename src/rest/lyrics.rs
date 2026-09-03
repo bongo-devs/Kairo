@@ -1,13 +1,5 @@
-//! The lyrics endpoints:
-//!
-//! - `GET /v4/lyrics?track=<encoded>&skipTrackSource=<bool>` for an encoded track.
-//! - `GET /v4/sessions/{s}/players/{g}/track/lyrics?skipTrackSource=<bool>` for the current track.
-//! - `POST /v4/sessions/{s}/players/{g}/lyrics/subscribe?skipTrackSource=<bool>` to subscribe.
-//! - `DELETE /v4/sessions/{s}/players/{g}/lyrics/subscribe` to unsubscribe.
-//!
-//! These handlers decode inputs, run the provider fan-out for the two GETs, and toggle the
-//! subscription; the live-lyrics machinery itself is in [`crate::session::lyrics`]. Every endpoint
-//! needs the feature enabled, which [`AppState::lyrics_service`] reports.
+//! The lyrics endpoints. These decode inputs, run the provider fan-out for the two GETs, and toggle
+//! the subscription; the live-lyrics machinery itself is in [`crate::session::lyrics`].
 
 use std::collections::HashMap;
 use std::sync::Arc;

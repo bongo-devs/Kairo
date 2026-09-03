@@ -25,7 +25,6 @@ fn url_encode(s: &str) -> String {
     out
 }
 
-/// A SponsorBlock segment to skip.
 #[derive(Debug, Clone, Serialize)]
 pub struct Segment {
     pub category: String,
@@ -33,7 +32,6 @@ pub struct Segment {
     pub end: u64,
 }
 
-/// A video chapter.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Chapter {
@@ -43,7 +41,6 @@ pub struct Chapter {
     pub duration: u64,
 }
 
-/// A segment or chapter attached to a track position.
 #[derive(Debug, Clone)]
 pub enum TrackMarkable {
     Segment(Segment),

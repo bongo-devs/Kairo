@@ -1,8 +1,5 @@
-//! Outbound WebSocket messages.
-//!
-//! These only ever travel to the client, so they derive [`Serialize`] alone. The wire shape is
-//! internally tagged on `op`, one of `ready`, `playerUpdate`, `stats` or `event`, and an `event` is
-//! tagged again on `type`.
+//! Outbound WebSocket messages: client-bound only, so [`Serialize`] alone. Internally tagged on
+//! `op` (`ready`, `playerUpdate`, `stats`, `event`), and an `event` is tagged again on `type`.
 
 use serde::Serialize;
 
@@ -20,7 +17,6 @@ pub enum Message {
     /// First message after the socket opens.
     #[serde(rename = "ready", rename_all = "camelCase")]
     Ready {
-        /// Whether this connection resumed a previous session.
         resumed: bool,
         /// The session id to use for REST calls.
         session_id: String,
@@ -28,9 +24,7 @@ pub enum Message {
     /// Periodic player state.
     #[serde(rename = "playerUpdate", rename_all = "camelCase")]
     PlayerUpdate {
-        /// The guild id.
         guild_id: String,
-        /// The current player state.
         state: PlayerState,
     },
     /// Periodic node statistics.
@@ -40,25 +34,22 @@ pub enum Message {
     /// Build it through [`Message::stats`], which keeps the two in step.
     #[serde(rename = "stats", rename_all = "camelCase")]
     Stats {
-        /// Frame statistics, `null` when the node has no players.
+        /// `null` when the node has no players.
         frame_stats: Option<FrameStats>,
-        /// Everything else in the stats payload.
         #[serde(flatten)]
         stats: Stats,
     },
-    /// A player event. Boxed, since events are far larger than the other variants.
+    /// Boxed, since events are far larger than the other variants.
     #[serde(rename = "event")]
     Event(Box<EmittedEvent>),
 }
 
 impl Message {
-    /// Wrap an [`EmittedEvent`] as an `op: "event"` message.
     pub fn event(event: EmittedEvent) -> Self {
         Message::Event(Box::new(event))
     }
 
-    /// Wrap node statistics as an `op: "stats"` message, hoisting `frameStats` out of `stats` so it
-    /// is encoded exactly once.
+    /// Hoists `frameStats` out of `stats` so it is encoded exactly once.
     pub fn stats(mut stats: Stats) -> Self {
         let frame_stats = stats.frame_stats.take();
         Message::Stats { frame_stats, stats }
@@ -69,119 +60,87 @@ impl Message {
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
 pub enum EmittedEvent {
-    /// A track started playing.
     #[serde(rename = "TrackStartEvent", rename_all = "camelCase")]
     TrackStart {
-        /// The guild id.
         guild_id: String,
-        /// The track that started.
         track: Track,
     },
     /// A pre-buffered successor became the active track. The server is already playing it, so a
     /// client advances its queue state and re-anchors position without sending a play request.
     #[serde(rename = "TrackPromotedEvent", rename_all = "camelCase")]
     TrackPromoted {
-        /// The guild id.
         guild_id: String,
-        /// The track that is now active.
         track: Track,
     },
-    /// A track ended.
     #[serde(rename = "TrackEndEvent", rename_all = "camelCase")]
     TrackEnd {
-        /// The guild id.
         guild_id: String,
-        /// The track that ended.
         track: Track,
-        /// Why the track ended.
         reason: TrackEndReason,
     },
     /// A track threw an exception, which may or may not be fatal.
     #[serde(rename = "TrackExceptionEvent", rename_all = "camelCase")]
     TrackException {
-        /// The guild id.
         guild_id: String,
-        /// The affected track.
         track: Track,
-        /// The exception.
         exception: Exception,
     },
     /// A track got stuck, producing no frames within the threshold.
     #[serde(rename = "TrackStuckEvent", rename_all = "camelCase")]
     TrackStuck {
-        /// The guild id.
         guild_id: String,
-        /// The affected track.
         track: Track,
-        /// The stuck threshold in milliseconds.
         threshold_ms: i64,
     },
     /// The Discord voice WebSocket closed.
     #[serde(rename = "WebSocketClosedEvent", rename_all = "camelCase")]
     WebSocketClosed {
-        /// The guild id.
         guild_id: String,
         /// The Discord voice close code.
         code: i32,
-        /// The close reason.
         reason: String,
         /// Whether Discord initiated the close.
         by_remote: bool,
     },
-    /// A SponsorBlock segment was skipped.
     #[serde(rename = "SegmentSkipped", rename_all = "camelCase")]
     SegmentSkipped {
-        /// The guild id.
         guild_id: String,
-        /// The segment that was skipped.
         segment: Segment,
     },
     /// SponsorBlock segments were loaded for a track.
     #[serde(rename = "SegmentsLoaded", rename_all = "camelCase")]
     SegmentsLoaded {
-        /// The guild id.
         guild_id: String,
-        /// The loaded segments.
         segments: Vec<Segment>,
     },
-    /// A video chapter started.
     #[serde(rename = "ChapterStarted", rename_all = "camelCase")]
     ChapterStarted {
-        /// The guild id.
         guild_id: String,
-        /// The chapter that started.
         chapter: Chapter,
     },
     /// Video chapters were loaded for a track.
     #[serde(rename = "ChaptersLoaded", rename_all = "camelCase")]
     ChaptersLoaded {
-        /// The guild id.
         guild_id: String,
-        /// The loaded chapters.
         chapters: Vec<Chapter>,
     },
     /// Lyrics were found for the current track.
     #[serde(rename = "LyricsFoundEvent", rename_all = "camelCase")]
     LyricsFound {
-        /// The guild id.
         guild_id: String,
-        /// The resolved lyrics.
         lyrics: Lyrics,
     },
     /// No lyrics were found for the current track.
     #[serde(rename = "LyricsNotFoundEvent", rename_all = "camelCase")]
     LyricsNotFound {
-        /// The guild id.
         guild_id: String,
     },
     /// A synced lyric line was reached during playback.
     #[serde(rename = "LyricsLineEvent", rename_all = "camelCase")]
     LyricsLine {
-        /// The guild id.
         guild_id: String,
         /// The index of the line within the lyrics.
         line_index: i32,
-        /// The line that was reached.
         line: Line,
         /// Whether the line was passed over, by a seek or by arriving late, rather than reached in
         /// real time.
@@ -197,9 +156,7 @@ pub enum TrackEndReason {
     Finished,
     /// The track failed to start, throwing before producing audio.
     LoadFailed,
-    /// The player was stopped.
     Stopped,
-    /// A new track replaced this one.
     Replaced,
     /// The player was cleaned up after the idle threshold.
     Cleanup,
@@ -211,7 +168,6 @@ pub enum TrackEndReason {
 }
 
 impl TrackEndReason {
-    /// Map an engine end reason to the wire reason.
     pub fn from_player(reason: player::track::state::AudioTrackEndReason) -> Self {
         use player::track::state::AudioTrackEndReason as R;
         match reason {

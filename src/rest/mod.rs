@@ -29,7 +29,6 @@ use crate::rest::error::{error_body_middleware, RestError};
 // Shared by the route and by `auth`, which answers a wrong password differently there.
 const WEBSOCKET_PATH: &str = "/v4/websocket";
 
-/// Build the REST and WebSocket application.
 pub fn app(state: AppState) -> Router {
     let mut router = Router::new()
         .route("/version", get(info::version))
@@ -98,7 +97,6 @@ pub fn app(state: AppState) -> Router {
         .with_state(state)
 }
 
-// Tag every response with the protocol version the client is talking to.
 async fn api_version_header(request: Request, next: Next) -> Response {
     let mut response = next.run(request).await;
     response

@@ -10,8 +10,6 @@ use crate::session::context::SocketContext;
 const SESSION_ID_LEN: usize = 16;
 const SESSION_ID_CHARS: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
 
-/// Holds the active sessions and the sessions currently paused awaiting resume.
-///
 /// Lock order: never hold both maps at once. Every method takes one guard, drops it, then takes the
 /// other if it still needs to.
 #[derive(Default)]
@@ -25,7 +23,6 @@ impl SocketServer {
         Self::default()
     }
 
-    /// Generate a fresh session id that no live or resumable session is using.
     pub fn generate_session_id(&self) -> String {
         let mut rng = rand::thread_rng();
         loop {
@@ -55,7 +52,6 @@ impl SocketServer {
         self.sessions.lock().unwrap().remove(session_id)
     }
 
-    /// Move an active session into the resumable set after a resumable disconnect.
     pub fn move_to_resumable(&self, session_id: &str) -> Option<Arc<SocketContext>> {
         let context = self.sessions.lock().unwrap().remove(session_id)?;
         self.resumable
@@ -65,7 +61,6 @@ impl SocketServer {
         Some(context)
     }
 
-    /// Take a resumable session back into the active set on reconnect.
     pub fn take_resumable(&self, session_id: &str) -> Option<Arc<SocketContext>> {
         let context = self.resumable.lock().unwrap().remove(session_id)?;
         self.sessions
@@ -75,7 +70,6 @@ impl SocketServer {
         Some(context)
     }
 
-    /// Drop a resumable session whose resume window expired.
     pub fn drop_resumable(&self, session_id: &str) -> Option<Arc<SocketContext>> {
         self.resumable.lock().unwrap().remove(session_id)
     }
@@ -89,12 +83,10 @@ impl SocketServer {
         self.sessions.lock().unwrap().contains_key(session_id)
     }
 
-    /// All active session contexts, for the periodic broadcast tasks.
     pub fn active_contexts(&self) -> Vec<Arc<SocketContext>> {
         self.sessions.lock().unwrap().values().cloned().collect()
     }
 
-    /// Total number of players across all active sessions.
     pub fn total_players(&self) -> usize {
         self.sessions
             .lock()

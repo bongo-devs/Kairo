@@ -1,13 +1,10 @@
-//! Lyrics response types.
-//!
-//! These only ever travel to the client, so they derive [`Serialize`] alone. The `plugin` field is
-//! part of the wire format and always carries an empty object here.
+//! Lyrics response types: outbound only, so [`Serialize`] alone. The `plugin` field is part of the
+//! wire format and always carries an empty object here.
 
 use serde::Serialize;
 
 use ::lyrics::LyricsData;
 
-/// A resolved lyrics result.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Lyrics {
@@ -15,15 +12,12 @@ pub struct Lyrics {
     pub source_name: String,
     /// The provider that produced this result, such as `lrclib`.
     pub provider: Option<String>,
-    /// The full plain text lyrics, if available.
     pub text: Option<String>,
     /// Timed lyric lines, if the provider returned synced lyrics.
     pub lines: Option<Vec<Line>>,
-    /// Plugin metadata, always an empty object here.
     pub plugin: serde_json::Value,
 }
 
-/// A lyric line, timed when the provider gave timings.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Line {
@@ -31,9 +25,7 @@ pub struct Line {
     pub timestamp: u64,
     /// How long the line is shown, in milliseconds, when known.
     pub duration: Option<u64>,
-    /// The line text.
     pub line: String,
-    /// Plugin metadata, always an empty object here.
     pub plugin: serde_json::Value,
 }
 

@@ -1,8 +1,5 @@
-//! Route planner status types.
-//!
-//! Produced by the `/v4/routeplanner/*` handlers from the [`IpRoutePlanner`](crate::routeplanner)
-//! when `lavalink.server.ratelimit` is configured. Without one, `GET /v4/routeplanner/status`
-//! answers `204 No Content` and the free-address endpoints answer `500`.
+//! Route planner status for `/v4/routeplanner/*`, served only when `lavalink.server.ratelimit` is
+//! set; without it status answers `204` and the free-address endpoints `500`.
 
 use serde::Serialize;
 
@@ -30,7 +27,6 @@ pub enum RoutePlannerStatus {
 pub struct RotatingIpDetails {
     /// The IP block being rotated through.
     pub ip_block: IpBlockStatus,
-    /// Addresses currently marked as failing.
     pub failing_addresses: Vec<FailingAddress>,
     /// The rotation index.
     pub rotate_index: String,
@@ -46,7 +42,6 @@ pub struct RotatingIpDetails {
 pub struct NanoIpDetails {
     /// The IP block being switched through.
     pub ip_block: IpBlockStatus,
-    /// Addresses currently marked as failing.
     pub failing_addresses: Vec<FailingAddress>,
     /// The current address index, nanoseconds elapsed since the planner started, so it is a
     /// timestamp rather than a small counter.
@@ -59,7 +54,6 @@ pub struct NanoIpDetails {
 pub struct RotatingNanoIpDetails {
     /// The IP block being switched through.
     pub ip_block: IpBlockStatus,
-    /// Addresses currently marked as failing.
     pub failing_addresses: Vec<FailingAddress>,
     /// Which `/64` inside the block is in use, advanced on a ban.
     pub block_index: String,
@@ -74,7 +68,6 @@ pub struct RotatingNanoIpDetails {
 pub struct BalancingIpDetails {
     /// The IP block being balanced across.
     pub ip_block: IpBlockStatus,
-    /// Addresses currently marked as failing.
     pub failing_addresses: Vec<FailingAddress>,
 }
 

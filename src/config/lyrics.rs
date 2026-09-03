@@ -1,16 +1,5 @@
-//! `lyrics.*`, the lyrics lookup feature.
-//!
-//! The provider settings live in the [`lyrics`](::lyrics) crate next to the providers themselves
-//! and are flattened in here, so adding a provider never touches this crate.
-//!
-//! ```yaml
-//! lyrics:
-//!   enabled: true          # master switch, off means every lyrics endpoint answers 503
-//!   lrclib: true           # per-provider toggles, all opt-in
-//!   youtubemusic: true
-//!   deezerProxy:           # optional proxy for the Deezer lyrics provider
-//!     url: "http://host:3128"
-//! ```
+//! `lyrics.*`. The provider settings live in the [`lyrics`](::lyrics) crate next to the providers
+//! themselves and are flattened in here, so adding a provider never touches this crate.
 
 use std::sync::Arc;
 
@@ -18,7 +7,6 @@ use serde::Deserialize;
 
 use ::lyrics::{LyricsConfig, LyricsService};
 
-/// The master switch plus the per-provider [`LyricsConfig`].
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct LyricsServerConfig {

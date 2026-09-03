@@ -1,5 +1,3 @@
-//! Player state and the player update body.
-
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -11,19 +9,13 @@ use crate::protocol::track::Track;
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Player {
-    /// The guild id this player belongs to.
     pub guild_id: String,
-    /// The currently loaded track, if any.
     pub track: Option<Track>,
     /// The volume, `0..=1000`.
     pub volume: i32,
-    /// Whether the player is paused.
     pub paused: bool,
-    /// The live player state.
     pub state: PlayerState,
-    /// The Discord voice state.
     pub voice: VoiceState,
-    /// The active filters.
     pub filters: Filters,
     /// The transition options in effect, or `null` when transitions are off. Always present, so a
     /// client can tell an unconfigured player from an unreported one.
@@ -44,15 +36,14 @@ pub struct PlayerState {
     pub ping: i64,
 }
 
-/// The Discord voice connection state.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoiceState {
-    /// The voice token from `VOICE_SERVER_UPDATE`.
+    /// From `VOICE_SERVER_UPDATE`.
     pub token: String,
-    /// The voice endpoint host from `VOICE_SERVER_UPDATE`.
+    /// Host from `VOICE_SERVER_UPDATE`.
     pub endpoint: String,
-    /// The voice session id from `VOICE_STATE_UPDATE`.
+    /// From `VOICE_STATE_UPDATE`.
     pub session_id: String,
     /// The voice channel id, if connected.
     #[serde(default)]
@@ -115,7 +106,6 @@ pub struct CrossfadeSettings {
     /// Overlap length in milliseconds for an explicit manual skip.
     #[serde(default = "default_manual_duration_ms")]
     pub manual_duration_ms: u64,
-    /// Fade easing.
     pub curve: CrossfadeCurve,
     /// Whether to fall back to a zero-gap handoff when crossfade is off or inapplicable.
     pub gapless: bool,
@@ -196,7 +186,6 @@ pub struct TapeSettings {
     /// Spin-down and spin-up ramp length in milliseconds.
     #[serde(default = "default_tape_duration_ms")]
     pub duration_ms: u64,
-    /// Ramp easing.
     pub curve: TapeCurve,
 }
 
@@ -259,7 +248,6 @@ pub struct PlayerUpdate {
     pub encoded_track: Omissible<Option<String>>,
     /// Deprecated alias for `track.identifier`.
     pub identifier: Omissible<String>,
-    /// The track to play and its user data.
     pub track: Omissible<PlayerUpdateTrack>,
     /// Seek position in milliseconds.
     pub position: Omissible<i64>,
@@ -267,11 +255,9 @@ pub struct PlayerUpdate {
     pub end_time: Omissible<Option<i64>>,
     /// Volume, `0..=1000`.
     pub volume: Omissible<i32>,
-    /// Whether to pause.
     pub paused: Omissible<bool>,
     /// Filters to apply, replacing the whole chain.
     pub filters: Omissible<Filters>,
-    /// Voice connection state to apply.
     pub voice: Omissible<VoiceState>,
     /// The next track to pre-buffer for a transition, `null` to clear. Once the current track's
     /// end marker fires it becomes a held mixer layer and the track ends with reason `crossfade`,

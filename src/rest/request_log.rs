@@ -1,9 +1,6 @@
-//! Request logging middleware for the REST API.
-//!
-//! Each request is logged once it completes, as `METHOD /path?query, client=..., headers=[...],
-//! payload=...`, with every segment gated by its own
-//! [`RequestLoggingConfig`](crate::config::RequestLoggingConfig) flag. `before_request` adds a
-//! second line, prefixed `>> `, before the handler runs. Sensitive headers are redacted.
+//! Request logging middleware. Every segment is gated by its own
+//! [`RequestLoggingConfig`](crate::config::RequestLoggingConfig) flag, and `before_request` adds a
+//! second line prefixed `>> ` before the handler runs.
 
 use std::net::SocketAddr;
 
@@ -27,7 +24,6 @@ const REDACTED_HEADERS: [header::HeaderName; 4] = [
     header::SET_COOKIE,
 ];
 
-/// Log each REST request after it completes (and optionally before), per `logging.request.*`.
 pub async fn request_logging(
     State(state): State<AppState>,
     request: Request,
@@ -92,7 +88,6 @@ pub async fn request_logging(
     response
 }
 
-// Assemble one log line from the segments that survived their flags.
 fn message(
     prefix: &str,
     method: &Method,
@@ -126,7 +121,6 @@ fn message(
     msg
 }
 
-// Render a body as lossy UTF-8, truncated to `max_len`, or `None` when it is empty.
 fn render_payload(bytes: &Bytes, max_len: usize) -> Option<String> {
     if bytes.is_empty() {
         return None;
@@ -135,7 +129,6 @@ fn render_payload(bytes: &Bytes, max_len: usize) -> Option<String> {
     Some(String::from_utf8_lossy(&bytes[..end]).into_owned())
 }
 
-// Format the headers as `[name:"value", ...]`, redacting the sensitive ones.
 fn format_headers(headers: &HeaderMap) -> String {
     let rendered: Vec<String> = headers
         .iter()

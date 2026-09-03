@@ -1,7 +1,5 @@
-//! The `/v4/websocket` endpoint: the handshake, and the socket's read and write loops.
-//!
-//! A client opens one socket per session and receives every event on it. The socket carries no
-//! inbound commands, those go over REST; a session id in the handshake asks to resume an earlier one.
+//! The `/v4/websocket` endpoint. One socket per session, carrying no inbound commands, those go over
+//! REST; a session id in the handshake asks to resume an earlier one.
 
 use std::sync::Arc;
 use std::time::Duration;

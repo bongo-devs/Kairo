@@ -133,10 +133,8 @@ fn encode_all(
 
 /// `GET /v4/loadsearch?query=...&types=...`, a search split into categories.
 ///
-/// `query` carries the source prefix, for instance `jssearch:foo` or `dzsearch:foo`, and is routed
-/// to the one source that claims it. `types` is an optional comma-separated list of `track`,
-/// `album`, `artist`, `playlist` and `text`; when absent every category is searched. No matching
-/// source, or a search that yields nothing, gives `204 No Content` with no body.
+/// `query` carries the source prefix, such as `jssearch:foo`, and is routed to the one source that
+/// claims it. No matching source, or a search that yields nothing, gives `204` with no body.
 pub async fn load_search(
     State(state): State<AppState>,
     Query(params): Query<HashMap<String, String>>,

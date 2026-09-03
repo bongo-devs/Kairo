@@ -1,9 +1,5 @@
-//! The `/v4/routeplanner/*` endpoints.
-//!
-//! When `lavalink.server.ratelimit` is configured, an [`IpRoutePlanner`](crate::routeplanner)
-//! rotates the outbound source address. These endpoints expose its status and let a client clear
-//! failing addresses. Without a route planner, `status` answers `204 No Content` and the `free`
-//! endpoints answer `500`.
+//! The `/v4/routeplanner/*` endpoints: the [`IpRoutePlanner`](crate::routeplanner) status and
+//! clearing failing addresses. Unconfigured, `status` answers `204` and the `free` ones `500`.
 
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -25,7 +21,6 @@ pub async fn status(State(state): State<AppState>) -> Response {
     }
 }
 
-/// Body of `POST /v4/routeplanner/free/address`.
 #[derive(Debug, Deserialize)]
 pub struct FreeAddressRequest {
     pub address: String,

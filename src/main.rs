@@ -1,5 +1,3 @@
-//! The `kairo` binary: load the configuration, install logging, then serve until a signal arrives.
-
 use std::future::Future;
 use std::pin::pin;
 use std::process::ExitCode;
@@ -72,11 +70,8 @@ async fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-// Opt the process out of transparent huge pages.
-//
-// The allocator's arenas are 2 MiB aligned, so a host set to `always` has khugepaged collapse them
-// into huge pages. Freed slices are purged below that granularity, the collapse faults every hole
-// back in, and the resident set climbs towards a 2 MiB granular peak it never gives back.
+// mimalloc's 2 MiB aligned arenas get collapsed by khugepaged on a host set to `always`; the
+// collapse refaults every hole purged below 2 MiB, so RSS only ever climbs.
 //
 // `KAIRO_ALLOW_THP` leaves the host setting alone, for a workload that would rather have the TLB.
 #[cfg(target_os = "linux")]
@@ -91,11 +86,8 @@ fn disable_thp() {
 #[cfg(not(target_os = "linux"))]
 fn disable_thp() {}
 
-// Accept connections until `shutdown` resolves, then let the open ones finish.
-//
-// Hand-rolled rather than `axum::serve` because each connection needs its peer address attached for
-// the request log, HTTP upgrades have to survive for WebSockets, and h2c is only offered when
-// configured.
+// Hand-rolled rather than `axum::serve`: connections need their peer address for the request log,
+// HTTP upgrades must survive for WebSockets, and h2c is only offered when configured.
 async fn serve(
     listener: TcpListener,
     app: Router,

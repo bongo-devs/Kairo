@@ -1,8 +1,5 @@
-//! The state behind one WebSocket connection.
-//!
-//! A context owns the connection's players, its outbound message channel and its resume state.
-//! While the socket is live, messages go straight to the write task; while the session is paused,
-//! meaning the socket dropped but is resumable, they are queued and replayed on resume.
+//! The state behind one WebSocket connection: its players, outbound channel and resume state. Live:
+//! messages go straight to the write task. Paused (socket dropped but resumable): queued, replayed on resume.
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -18,28 +15,19 @@ use player::CrossfadeOptions;
 use crate::protocol::message::Message;
 use crate::session::player::LavalinkPlayer;
 
-// How many messages a paused session may hold before the oldest are dropped.
-//
-// Playback continues while a session is parked and a lyrics line event fires for every line, so an
-// unbounded queue over an hour-long resume window would pin every event of every player in memory.
+// Cap on a paused session's queue; the oldest go first. Playback continues while parked and a lyrics
+// line event fires per line, so unbounded would pin every event of every player in memory.
 const RESUME_QUEUE_CAP: usize = 4_096;
 
-// Where outbound messages currently go.
 enum Outbound {
-    // A live socket: send straight to the write task.
     Live(UnboundedSender<Message>),
-    // Resumable: queue until the client reconnects, capped at `RESUME_QUEUE_CAP`.
     Queued {
-        // The pending replay, oldest first.
         queue: VecDeque<Message>,
-        // How many messages were dropped because the queue was full.
         dropped: u64,
     },
-    // Permanently closed: drop messages.
     Closed,
 }
 
-/// Per-connection state for one session.
 pub struct SocketContext {
     /// The session id, as used in REST paths and the `ready` message.
     pub session_id: String,
@@ -57,9 +45,8 @@ pub struct SocketContext {
     // The pending resume-expiry timer. Without cancelling it on resume, a timer armed by an earlier
     // disconnect outlives its resume and expires the next resume window early.
     resume_timeout_task: Mutex<Option<AbortHandle>>,
-    // Bumped whenever a socket takes over this session's outbound channel. A connection whose socket
-    // died while the client already reconnected sees a stale epoch and must not park or destroy the
-    // session the live socket now owns.
+    // Bumped when a socket takes over this session's outbound channel. A connection whose socket died
+    // after the client reconnected sees a stale epoch and must not park or destroy the live session.
     connection_epoch: AtomicU64,
     sponsorblock: Mutex<HashMap<u64, HashSet<String>>>,
 }
@@ -90,12 +77,10 @@ impl SocketContext {
         })
     }
 
-    /// The epoch of the socket that currently owns this session's outbound channel.
     pub fn connection_epoch(&self) -> u64 {
         self.connection_epoch.load(Ordering::Acquire)
     }
 
-    /// Send a message to the client, or queue it while the session is paused.
     pub fn send_message(&self, message: Message) {
         let mut outbound = self.outbound.lock().unwrap();
         match &mut *outbound {
@@ -126,7 +111,6 @@ impl SocketContext {
         }
     }
 
-    /// Get the player for `guild_id`, creating it on the first request for that guild.
     pub fn get_or_create_player(self: &Arc<Self>, guild_id: u64) -> Arc<LavalinkPlayer> {
         let mut players = self.players.lock().unwrap();
         if let Some(player) = players.get(&guild_id) {
@@ -149,7 +133,6 @@ impl SocketContext {
         self.players.lock().unwrap().get(&guild_id).cloned()
     }
 
-    /// Remove and destroy the player for `guild_id`. Returns whether one existed.
     pub fn remove_player(&self, guild_id: u64) -> bool {
         self.sponsorblock.lock().unwrap().remove(&guild_id);
         let player = self.players.lock().unwrap().remove(&guild_id);
@@ -169,7 +152,6 @@ impl SocketContext {
         self.players.lock().unwrap().len()
     }
 
-    /// The number of players that hold a track and are not paused.
     pub fn playing_player_count(&self) -> usize {
         self.players
             .lock()
@@ -184,7 +166,6 @@ impl SocketContext {
         self.resuming.load(Ordering::Acquire)
     }
 
-    /// How long a dropped socket may stay resumable, in seconds.
     pub fn resume_timeout_secs(&self) -> u64 {
         self.resume_timeout_secs.load(Ordering::Acquire)
     }
@@ -202,7 +183,6 @@ impl SocketContext {
         self.session_paused.load(Ordering::Acquire)
     }
 
-    /// Pause the session: queue outbound messages until a resume (or timeout).
     pub fn pause(&self) {
         self.session_paused.store(true, Ordering::Release);
         let mut outbound = self.outbound.lock().unwrap();
@@ -212,24 +192,20 @@ impl SocketContext {
         };
     }
 
-    /// Arm the resume-expiry timer, cancelling any timer left over from an earlier disconnect.
     pub fn arm_resume_timeout(&self, handle: AbortHandle) {
         if let Some(previous) = self.resume_timeout_task.lock().unwrap().replace(handle) {
             previous.abort();
         }
     }
 
-    /// Cancel the pending resume-expiry timer.
     pub fn stop_resume_timeout(&self) {
         if let Some(handle) = self.resume_timeout_task.lock().unwrap().take() {
             handle.abort();
         }
     }
 
-    /// Resume the session onto a fresh outbound channel, replaying any queued messages.
-    ///
-    /// Returns the new connection epoch. The caller is expected to have already pushed `ready` into
-    /// `sender`, which the client has to see before the replay.
+    /// Resume onto a fresh outbound channel, replaying queued messages, and return the new epoch.
+    /// The caller must already have pushed `ready` into `sender`: the client has to see it first.
     pub fn resume_with(&self, sender: UnboundedSender<Message>) -> u64 {
         self.stop_resume_timeout();
         let mut outbound = self.outbound.lock().unwrap();
@@ -254,7 +230,6 @@ impl SocketContext {
     }
 
     /// Replace the outbound channel for a still-live session (a reconnect without resume state).
-    ///
     /// Returns the new connection epoch, which invalidates the previous socket's teardown.
     pub fn attach_sender(&self, sender: UnboundedSender<Message>) -> u64 {
         self.stop_resume_timeout();
@@ -263,7 +238,6 @@ impl SocketContext {
         self.connection_epoch.fetch_add(1, Ordering::AcqRel) + 1
     }
 
-    /// The SponsorBlock categories to skip for a guild.
     pub fn get_sponsorblock_categories(&self, guild_id: u64) -> Option<HashSet<String>> {
         self.sponsorblock.lock().unwrap().get(&guild_id).cloned()
     }
@@ -279,7 +253,6 @@ impl SocketContext {
         self.sponsorblock.lock().unwrap().remove(&guild_id);
     }
 
-    /// Permanently shut down: destroy all players and stop accepting messages.
     pub fn shutdown(&self) {
         self.stop_resume_timeout();
         crate::node::tasks::TASKS.remove(&crate::node::tasks::session_stats(&self.session_id));

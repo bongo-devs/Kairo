@@ -18,7 +18,6 @@ pub struct RestError {
     pub trace: Option<String>,
 }
 
-/// What every handler returns.
 pub type RestResult<T> = Result<T, RestError>;
 
 impl RestError {
@@ -80,7 +79,6 @@ impl IntoResponse for RestError {
     }
 }
 
-// The v4 error body.
 #[derive(Debug, Serialize)]
 struct ErrorBody {
     timestamp: i64,
@@ -145,7 +143,6 @@ fn query_flag(query: &str, key: &str) -> bool {
     })
 }
 
-/// The current unix time in milliseconds.
 pub fn now_millis() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
