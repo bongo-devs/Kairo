@@ -61,17 +61,11 @@ impl Message {
 #[serde(tag = "type")]
 pub enum EmittedEvent {
     #[serde(rename = "TrackStartEvent", rename_all = "camelCase")]
-    TrackStart {
-        guild_id: String,
-        track: Track,
-    },
+    TrackStart { guild_id: String, track: Track },
     /// A pre-buffered successor became the active track. The server is already playing it, so a
     /// client advances its queue state and re-anchors position without sending a play request.
     #[serde(rename = "TrackPromotedEvent", rename_all = "camelCase")]
-    TrackPromoted {
-        guild_id: String,
-        track: Track,
-    },
+    TrackPromoted { guild_id: String, track: Track },
     #[serde(rename = "TrackEndEvent", rename_all = "camelCase")]
     TrackEnd {
         guild_id: String,
@@ -103,10 +97,7 @@ pub enum EmittedEvent {
         by_remote: bool,
     },
     #[serde(rename = "SegmentSkipped", rename_all = "camelCase")]
-    SegmentSkipped {
-        guild_id: String,
-        segment: Segment,
-    },
+    SegmentSkipped { guild_id: String, segment: Segment },
     /// SponsorBlock segments were loaded for a track.
     #[serde(rename = "SegmentsLoaded", rename_all = "camelCase")]
     SegmentsLoaded {
@@ -114,10 +105,7 @@ pub enum EmittedEvent {
         segments: Vec<Segment>,
     },
     #[serde(rename = "ChapterStarted", rename_all = "camelCase")]
-    ChapterStarted {
-        guild_id: String,
-        chapter: Chapter,
-    },
+    ChapterStarted { guild_id: String, chapter: Chapter },
     /// Video chapters were loaded for a track.
     #[serde(rename = "ChaptersLoaded", rename_all = "camelCase")]
     ChaptersLoaded {
@@ -126,15 +114,10 @@ pub enum EmittedEvent {
     },
     /// Lyrics were found for the current track.
     #[serde(rename = "LyricsFoundEvent", rename_all = "camelCase")]
-    LyricsFound {
-        guild_id: String,
-        lyrics: Lyrics,
-    },
+    LyricsFound { guild_id: String, lyrics: Lyrics },
     /// No lyrics were found for the current track.
     #[serde(rename = "LyricsNotFoundEvent", rename_all = "camelCase")]
-    LyricsNotFound {
-        guild_id: String,
-    },
+    LyricsNotFound { guild_id: String },
     /// A synced lyric line was reached during playback.
     #[serde(rename = "LyricsLineEvent", rename_all = "camelCase")]
     LyricsLine {
