@@ -710,7 +710,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1418,7 +1418,7 @@ dependencies = [
 
 [[package]]
 name = "kairo"
-version = "4.2.1"
+version = "4.3.0"
 dependencies = [
  "axum",
  "bytes",
@@ -1837,7 +1837,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2105,8 +2105,8 @@ dependencies = [
 
 [[package]]
 name = "player"
-version = "0.1.2"
-source = "git+https://github.com/bongo-devs/player?tag=v0.1.2-rc#4129876d048ff9eb2a17a8ffa9e1e786194979ce"
+version = "0.1.4"
+source = "git+https://github.com/bongo-devs/player?tag=v0.1.4-rc#862bcca0074781538c7b77d305a549a47239ad01"
 dependencies = [
  "aes",
  "base64",
@@ -2263,7 +2263,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2809,8 +2809,8 @@ dependencies = [
 
 [[package]]
 name = "sources"
-version = "0.1.8"
-source = "git+https://github.com/bongo-devs/sources?tag=v0.1.8#74186d8aa4573a0556c4d0256dc00933ef50e977"
+version = "0.1.9"
+source = "git+https://github.com/bongo-devs/sources?tag=v0.1.9#168c6780665a31b19f1d99876c909a812b49c190"
 dependencies = [
  "aes",
  "base64",

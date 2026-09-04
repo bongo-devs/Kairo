@@ -30,14 +30,18 @@ impl Track {
         }
     }
 
-    /// Encode an engine track, with empty plugin and user data and position `0`.
+    /// Encode an engine track, with the source's own plugin info, empty user data and position
+    /// `0`.
     pub fn from_engine(
         manager: &player::AudioPlayerManager,
         track: &dyn player::AudioTrack,
     ) -> player::Result<Self> {
         let encoded = manager.encode_track(track)?;
         let info = TrackInfo::from_engine(track.info(), track.source_name(), 0);
-        Ok(Self::new(encoded, info))
+        Ok(Self {
+            plugin_info: track.plugin_info(),
+            ..Self::new(encoded, info)
+        })
     }
 }
 
@@ -92,5 +96,33 @@ impl TrackInfo {
             artwork_url: info.artwork_url.clone(),
             isrc: info.isrc.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // A source's `pluginInfo` is the whole point of the field, and an empty map still has to
+    // serialize as `{}` rather than vanish.
+    #[test]
+    fn plugin_info_survives_serialization() {
+        let info = player::AudioTrackInfo::builder("id").title("t").build();
+        let mut track = Track::new(
+            "encoded".to_string(),
+            TrackInfo::from_engine(&info, "deezer", 0),
+        );
+        assert!(serde_json::to_string(&track)
+            .unwrap()
+            .contains(r#""pluginInfo":{}"#));
+
+        track
+            .plugin_info
+            .insert("albumName".into(), Value::from("Some Album"));
+        let json = serde_json::to_string(&track).unwrap();
+        assert!(
+            json.contains(r#""pluginInfo":{"albumName":"Some Album"}"#),
+            "{json}"
+        );
     }
 }

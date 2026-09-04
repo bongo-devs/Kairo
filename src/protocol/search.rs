@@ -97,7 +97,7 @@ fn playlist_to_metadata(playlist: player::track::playlist::AudioPlaylist) -> Pla
             name: playlist.name,
             selected_track: -1,
         },
-        plugin_info: Map::new(),
+        plugin_info: playlist.plugin_info,
         tracks: Vec::new(),
     }
 }

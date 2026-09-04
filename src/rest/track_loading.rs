@@ -51,7 +51,7 @@ pub async fn load_tracks(
                         name,
                         selected_track: selected,
                     },
-                    plugin_info: Default::default(),
+                    plugin_info: playlist.plugin_info,
                     tracks,
                 }),
                 Err(err) => LoadResult::Error(Exception::from_friendly(&err)),
@@ -111,7 +111,9 @@ fn decode_one(manager: &AudioPlayerManager, encoded: &str) -> RestResult<Track> 
         .map_err(|err| RestError::from_friendly(&err))?
     {
         let info = TrackInfo::from_engine(track.info(), track.source_name(), 0);
-        return Ok(Track::new(encoded.to_string(), info));
+        let mut proto = Track::new(encoded.to_string(), info);
+        proto.plugin_info = track.plugin_info();
+        return Ok(proto);
     }
 
     let decoded = manager
