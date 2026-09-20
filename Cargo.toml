@@ -24,7 +24,7 @@ tag = "v0.1.0"
 
 [dependencies.player]
 git = "https://github.com/bongo-devs/player"
-tag = "v0.1.4-rc"
+tag = "v0.1.5"
 
 [dependencies.sources]
 git = "https://github.com/bongo-devs/sources"
