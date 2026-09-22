@@ -87,6 +87,10 @@ pub async fn get_lyrics(
         identifier: info.identifier.clone(),
         source_name: track.source_name().to_string(),
         uri: info.uri.clone(),
+        // `u64::MAX` is the engine's unknown-length sentinel for a live stream, which is no duration
+        // a provider can match on.
+        duration_ms: (info.length > 0 && info.length < u64::MAX).then_some(info.length),
+        isrc: info.isrc.clone(),
     };
 
     Ok(respond_with_lyrics(&service, &query, skip_track_source(&params)).await)

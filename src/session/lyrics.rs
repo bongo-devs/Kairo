@@ -24,6 +24,10 @@ pub fn query_from_info(info: &TrackInfo) -> LyricsQuery {
         identifier: info.identifier.clone(),
         source_name: info.source_name.clone(),
         uri: info.uri.clone(),
+        // The wire carries `i64::MAX` for a live stream's unknown length; a provider that matches on
+        // duration wants `None` there, not a nonsense figure.
+        duration_ms: (info.length > 0 && info.length < i64::MAX).then_some(info.length as u64),
+        isrc: info.isrc.clone(),
     }
 }
 

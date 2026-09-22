@@ -261,8 +261,8 @@ sources:
       # - "ytsearch:\"%ISRC%\""
       # - "ytsearch:%QUERY%"
 
-# Lyrics providers. Every enabled one is queried in parallel and the first synced
-# result wins, falling back to plain text. Disabled unmounts the lyrics endpoints.
+# Lyrics providers. Every enabled one is queried in parallel; a word-synced result
+# wins, then line-synced, then plain text. Disabled unmounts the lyrics endpoints.
 lyrics:
   enabled: false
   lrclib: false # synced + plain, no auth
@@ -270,8 +270,25 @@ lyrics:
   genius: false # plain only
   deezer: false # synced word-by-word, anonymous JWT
   netease: false # synced + plain
+  letrasmus: false # plain only
   youtubemusic: false # synced + plain
+  unison: false # word-by-word (TTML) / line / plain
+  simpmusic: false # word-by-word, YouTube tracks only
+  megalobiz: false # line-synced, HTML scrape
+  betterlyrics: false # word-by-word (Apple TTML)
+  betterlyricsPortato: false # word-by-word (QQ Music karaoke)
+  binilyrics: false # word-by-word (Apple TTML), matched on ISRC
+  lyricsplus: false # syllable-by-syllable, community mirrors
+  kugou: false # line-synced, strong outside the English catalogue
+  paxsenix: false # word-by-word (Apple), keyless
+  paxsenixSpotify: false # Spotify lyrics, needs paxsenixApiKey
+  paxsenixMusixmatch: false # Musixmatch timings, needs paxsenixApiKey
+  paxsenixApiKey: "" # bearer key for the two paxsenix* routes above
   deezerProxy: # only for the Deezer lyrics provider
+    url: "" # e.g. http://host:3128 or socks5://host:1080
+    username: ""
+    password: ""
+  simpmusicProxy: # SimpMusic geoblocks some regions; a proxy in an allowed one gets past it
     url: "" # e.g. http://host:3128 or socks5://host:1080
     username: ""
     password: ""
