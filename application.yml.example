@@ -53,6 +53,7 @@ logging:
     symphonia_bundle_mp3: error # silences harmless VBR main_data_begin warnings
   format: compact # compact | pretty | json
   color: true
+  banner: true # print the startup banner (skipped when format is json)
   timestamps: true
   showTarget: true # prefix lines with the module name
   request: # REST request logging

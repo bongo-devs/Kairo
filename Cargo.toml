@@ -12,6 +12,7 @@ libc = "0.2"
 mimalloc = "0.1.48"
 perf_monitor = "0.2.1"
 rand = "0.8"
+semver = "1"
 serde_json = "1"
 serde_yaml = "0.9"
 tower-service = "0.3"
@@ -33,6 +34,11 @@ tag = "v0.1.12"
 [dependencies.voice]
 git = "https://github.com/bongo-devs/voice"
 tag = "v0.1.0"
+
+[dependencies.reqwest]
+version = "0.12"
+default-features = false
+features = ["rustls-tls", "json"]
 
 [dependencies.tokio]
 version = "1.52"
