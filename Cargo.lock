@@ -722,7 +722,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1430,7 +1430,7 @@ dependencies = [
 
 [[package]]
 name = "kairo"
-version = "4.8.0"
+version = "4.9.0"
 dependencies = [
  "axum",
  "bytes",
@@ -1749,8 +1749,8 @@ checksum = "4050469837a6ff301cd14c1f8f24f88549e6d548f24f64e2148eb0f72cebc51f"
 
 [[package]]
 name = "lyrics"
-version = "0.2.6"
-source = "git+https://github.com/bongo-devs/lyrics?tag=v0.2.6#5e0da4b1663e699937b580a69d196d4116191e43"
+version = "0.2.7"
+source = "git+https://github.com/bongo-devs/lyrics?tag=v0.2.7#9d7b6b1dee733a77583692d97ccf49e0dcfc3fd9"
 dependencies = [
  "async-trait",
  "base64",
@@ -1880,7 +1880,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2306,7 +2306,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
