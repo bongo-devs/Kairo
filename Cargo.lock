@@ -1430,7 +1430,7 @@ dependencies = [
 
 [[package]]
 name = "kairo"
-version = "4.7.0"
+version = "4.8.0"
 dependencies = [
  "axum",
  "bytes",
@@ -1749,8 +1749,8 @@ checksum = "4050469837a6ff301cd14c1f8f24f88549e6d548f24f64e2148eb0f72cebc51f"
 
 [[package]]
 name = "lyrics"
-version = "0.2.5"
-source = "git+https://github.com/bongo-devs/lyrics?tag=v0.2.5#25d82588934aa5c238fe1ca6fb975313f5c7331b"
+version = "0.2.6"
+source = "git+https://github.com/bongo-devs/lyrics?tag=v0.2.6#5e0da4b1663e699937b580a69d196d4116191e43"
 dependencies = [
  "async-trait",
  "base64",
