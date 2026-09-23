@@ -171,11 +171,7 @@ impl PlayerLyrics {
         let skip_source = self.skip_track_source.load(Ordering::Acquire);
         let tx = self.tx.clone();
         self.runtime.spawn(async move {
-            let data = if skip_source {
-                service.load_lyrics_skip_source(&query).await
-            } else {
-                service.load_lyrics(&query).await
-            };
+            let data = service.load_lyrics_synced(&query, skip_source).await;
             let _ = tx.send(LyricsCmd::Loaded {
                 track_epoch,
                 query_source: query.source_name,
