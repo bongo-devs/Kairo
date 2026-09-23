@@ -16,6 +16,10 @@ pub struct LoggingConfig {
     pub format: LogFormat,
     /// Colourise console output. Ignored for the file sink.
     pub color: bool,
+    /// Print the startup banner to the console. Ignored when [`format`] is JSON.
+    ///
+    /// [`format`]: Self::format
+    pub banner: bool,
     /// Prefix each line with a `HH:MM:SS` timestamp.
     pub timestamps: bool,
     /// Include the module target in each line.
@@ -33,6 +37,7 @@ impl Default for LoggingConfig {
             levels: HashMap::new(),
             format: LogFormat::Compact,
             color: true,
+            banner: true,
             timestamps: true,
             show_target: true,
             file: None,

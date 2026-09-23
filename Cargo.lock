@@ -1430,7 +1430,7 @@ dependencies = [
 
 [[package]]
 name = "kairo"
-version = "4.6.0"
+version = "4.5.0"
 dependencies = [
  "axum",
  "bytes",
@@ -1445,7 +1445,9 @@ dependencies = [
  "perf_monitor",
  "player",
  "rand 0.8.8",
+ "reqwest",
  "rustls",
+ "semver",
  "serde",
  "serde_json",
  "serde_yaml",

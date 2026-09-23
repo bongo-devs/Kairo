@@ -29,8 +29,13 @@ async fn main() -> ExitCode {
 
     LazyLock::force(&CONFIG);
 
+    kairo::utils::banner::print(&CONFIG.logging);
+
     // The guard flushes what the file sink buffered when dropped, so it is held for all of `main`.
     let _logging = kairo::utils::init(&CONFIG.logging);
+
+    // Fire and forget: it logs an upgrade notice if one exists and stays out of the way otherwise.
+    tokio::spawn(kairo::utils::update::check(&CONFIG.logging));
 
     let bind = format!("{}:{}", CONFIG.server.address, CONFIG.server.port);
     let http2 = CONFIG.server.http2.enabled;
