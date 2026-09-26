@@ -1,6 +1,6 @@
 [package]
 name = "kairo"
-version = "4.7.2"
+version = "4.7.3"
 edition = "2021"
 license = "MIT"
 description = "Standalone Discord audio sending node, written in Rust. Drop-in Lavalink v4 compatible."
@@ -25,7 +25,7 @@ tag = "v0.2.7"
 
 [dependencies.player]
 git = "https://github.com/bongo-devs/player"
-tag = "v0.1.6"
+tag = "v0.1.7"
 
 [dependencies.sources]
 git = "https://github.com/bongo-devs/sources"
