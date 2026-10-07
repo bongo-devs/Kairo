@@ -39,8 +39,16 @@ pub fn print(cfg: &LoggingConfig) {
         std::env::consts::OS,
         std::env::consts::ARCH,
     );
+    let crates = format!(
+        "player {}  ·  sources {}  ·  lyrics {}  ·  voice {}",
+        env!("KAIRO_PLAYER_VERSION"),
+        env!("KAIRO_SOURCES_VERSION"),
+        env!("KAIRO_LYRICS_VERSION"),
+        env!("KAIRO_VOICE_VERSION"),
+    );
 
     println!("\n{accent}{bold}{LOGO}{reset}\n");
     println!("  {dim}{TAGLINE}{reset}");
-    println!("  {dim}{facts}{reset}\n");
+    println!("  {dim}{facts}{reset}");
+    println!("  {dim}{crates}{reset}\n");
 }

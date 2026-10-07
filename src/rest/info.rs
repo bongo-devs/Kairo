@@ -7,9 +7,6 @@ use crate::node::AppState;
 use crate::protocol::info::{Git, Info, Version};
 use crate::protocol::stats::Stats;
 
-// The audio engine crate version, which is not readable from here at compile time.
-const PLAYER_VERSION: &str = "0.1.0";
-
 /// `GET /version`, the plain-text server version.
 pub async fn version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
@@ -30,7 +27,7 @@ pub async fn info(State(state): State<AppState>) -> Json<Info> {
             commit_time: env!("KAIRO_GIT_COMMIT_TIME").parse().unwrap_or(0),
         },
         jvm: format!("rust {rust_version}"),
-        lavaplayer: format!("player {PLAYER_VERSION}"),
+        lavaplayer: format!("player {}", env!("KAIRO_PLAYER_VERSION")),
         source_managers: state.source_names(),
         filters,
         plugins: Vec::new(),

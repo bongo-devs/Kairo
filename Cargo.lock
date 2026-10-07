@@ -1410,7 +1410,7 @@ dependencies = [
 
 [[package]]
 name = "kairo"
-version = "4.7.3"
+version = "4.7.4"
 dependencies = [
  "axum",
  "bytes",
@@ -2110,8 +2110,8 @@ dependencies = [
 
 [[package]]
 name = "player"
-version = "0.1.7"
-source = "git+https://github.com/bongo-devs/player?tag=v0.1.7#d26fe1aa836d6fc13109e253e175da219d89d86f"
+version = "0.1.8"
+source = "git+https://github.com/bongo-devs/player?tag=v0.1.8#186dbe36cce637c59afba577fc974718ec8c4274"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -2849,8 +2849,8 @@ dependencies = [
 
 [[package]]
 name = "sources"
-version = "0.1.15"
-source = "git+https://github.com/bongo-devs/sources?tag=v0.1.14#5ebb248c8c5baf162513e88dd25909956d935a39"
+version = "0.1.16"
+source = "git+https://github.com/bongo-devs/sources?tag=v0.1.16#ab31113e3f7bb66aa943d56e8042267817c0b496"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -3595,8 +3595,8 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "voice"
-version = "0.1.0"
-source = "git+https://github.com/bongo-devs/voice?tag=v0.1.0#5490ce4d9a165b9d9ab49a97b0acb0fbf6d39491"
+version = "0.1.2"
+source = "git+https://github.com/bongo-devs/voice?tag=v0.1.2#2ad27a5e6c0fc1c4e362b095b8d315d121088158"
 dependencies = [
  "aes-gcm",
  "bytes",

@@ -51,8 +51,27 @@ fn build_filter(cfg: &LoggingConfig) -> EnvFilter {
         directives.push('=');
         directives.push_str(level);
     }
+    // Built-in noise suppressions, skipped when the user already scopes the target. symphonia's
+    // fragmented-MP4 demuxer warns on every live segment whose moof numbering restarts — the
+    // expected shape of self-initialising broadcast segments, not corruption — so keep it out of
+    // the default output. Re-enable with `symphonia_format_isomp4::demuxer=warn` in levels.
+    for (target, level) in DEFAULT_SUPPRESSIONS {
+        let owned = cfg
+            .levels
+            .keys()
+            .any(|key| target.starts_with(key.as_str()) || key.starts_with(target));
+        if !owned {
+            directives.push(',');
+            directives.push_str(target);
+            directives.push('=');
+            directives.push_str(level);
+        }
+    }
     EnvFilter::builder().parse_lossy(directives)
 }
+
+/// `(target, level)` pairs silenced unless the user scopes them.
+const DEFAULT_SUPPRESSIONS: &[(&str, &str)] = &[("symphonia_format_isomp4::demuxer", "error")];
 
 fn fmt_layer<W>(
     cfg: &LoggingConfig,
