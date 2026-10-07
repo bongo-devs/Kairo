@@ -83,11 +83,3 @@ features = ["env-filter", "json", "chrono"]
 lto = "thin"
 codegen-units = 1
 strip = "symbols"
-
-# Build against the local sources and player checkouts instead of the tagged releases, to test
-# changes before they are tagged. Remove once the fixes are tagged and the pins above are bumped.
-[patch."https://github.com/bongo-devs/sources"]
-sources = { path = "crates/sources" }
-
-[patch."https://github.com/bongo-devs/player"]
-player = { path = "crates/player" }
