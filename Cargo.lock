@@ -2111,7 +2111,6 @@ dependencies = [
 [[package]]
 name = "player"
 version = "0.1.7"
-source = "git+https://github.com/bongo-devs/player?tag=v0.1.7#d26fe1aa836d6fc13109e253e175da219d89d86f"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -2850,7 +2849,6 @@ dependencies = [
 [[package]]
 name = "sources"
 version = "0.1.15"
-source = "git+https://github.com/bongo-devs/sources?tag=v0.1.14#5ebb248c8c5baf162513e88dd25909956d935a39"
 dependencies = [
  "aes",
  "base64 0.22.1",
