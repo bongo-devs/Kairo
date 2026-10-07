@@ -33,7 +33,7 @@ tag = "v0.1.16"
 
 [dependencies.voice]
 git = "https://github.com/bongo-devs/voice"
-tag = "v0.1.0"
+tag = "v0.1.2"
 
 [dependencies.reqwest]
 version = "0.12"
