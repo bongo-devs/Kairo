@@ -241,6 +241,10 @@ pub struct VoiceConfig {
     /// Outer bound on one handshake. The voice crate aborts its inner exchange
     /// after 30 s; this releases the gate permit sooner on a hung handshake.
     pub handshake_timeout_ms: u64,
+    /// Connect in the background and answer PATCH immediately (`true`), or block
+    /// the PATCH on the handshake as Lavalink historically does (`false`, with
+    /// the pre-change failure mapping: handshake errors return `500`).
+    pub background_connect: bool,
 }
 
 impl Default for VoiceConfig {
@@ -249,6 +253,7 @@ impl Default for VoiceConfig {
             max_concurrent_handshakes: 32,
             queue_warn_ms: 15_000,
             handshake_timeout_ms: 10_000,
+            background_connect: true,
         }
     }
 }

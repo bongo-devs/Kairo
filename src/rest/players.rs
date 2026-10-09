@@ -186,21 +186,37 @@ pub async fn patch_player(
     // `WebSocketClosedEvent` (1006) on final failure after retries. Voice
     // validation errors stay synchronous (`400` below). Clients should treat a
     // `connected: false` that never flips as a failed connect and re-PATCH.
+    // `backgroundConnect: false` restores the blocking path (handshake errors
+    // return `500` from this PATCH as before).
     match update.voice {
         Omissible::Present(voice)
             if player.voice_reconnect(&voice) && player.try_claim_voice(&voice) =>
         {
-            let task_player = Arc::clone(&player);
-            let handshake_timeout = state.config().lavalink.server.voice.handshake_timeout();
-            let hs_player = Arc::clone(&task_player);
-            let fut_voice = voice.clone();
-            let guard = VoiceClaimGuard::new(task_player, voice);
-            tokio::spawn(async move {
-                LavalinkPlayer::background_connect(guard, handshake_timeout, || {
-                    hs_player.handshake_voice(&fut_voice)
-                })
-                .await;
-            });
+            let voice_cfg = &state.config().lavalink.server.voice;
+            let handshake_timeout = voice_cfg.handshake_timeout();
+            if voice_cfg.background_connect {
+                let task_player = Arc::clone(&player);
+                let hs_player = Arc::clone(&task_player);
+                let fut_voice = voice.clone();
+                let guard = VoiceClaimGuard::new(task_player, voice);
+                tokio::spawn(async move {
+                    LavalinkPlayer::background_connect(guard, handshake_timeout, || {
+                        hs_player.handshake_voice(&fut_voice)
+                    })
+                    .await;
+                });
+            } else {
+                let fut_voice = voice.clone();
+                let guard = VoiceClaimGuard::new(Arc::clone(&player), voice);
+                let hs_player = Arc::clone(&player);
+                LavalinkPlayer::connect_voice_sync(
+                    guard,
+                    voice_cfg.queue_warn(),
+                    handshake_timeout,
+                    || hs_player.handshake_voice(&fut_voice),
+                )
+                .await?;
+            }
         }
         _ => {}
     }
@@ -354,4 +370,121 @@ async fn resolve_track(
     }
 
     Ok(None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    use axum::extract::{Path, Query};
+
+    use crate::config::Config;
+    use crate::protocol::message::{EmittedEvent, Message};
+    use crate::protocol::player::VoiceState;
+
+    const SESSION: &str = "storm-paths-session";
+    const GUILD_BG: u64 = 424242424242424242;
+    const GUILD_SYNC: u64 = 434343434343434343;
+
+    // Voice against loopback with nothing listening: TCP refuses instantly, so
+    // the handshake fails fast without any external network.
+    fn refused_voice() -> VoiceState {
+        VoiceState {
+            token: "t".to_string(),
+            endpoint: "127.0.0.1:1".to_string(),
+            session_id: "s".to_string(),
+            channel_id: Some("c".to_string()),
+        }
+    }
+
+    fn voice_update() -> PlayerUpdate {
+        PlayerUpdate {
+            voice: Omissible::Present(refused_voice()),
+            ..Default::default()
+        }
+    }
+
+    async fn patched_state(
+        background_connect: bool,
+    ) -> (AppState, tokio::sync::mpsc::UnboundedReceiver<Message>) {
+        let mut config = Config::default();
+        config.lavalink.server.voice.background_connect = background_connect;
+        // Keep the process-global update interval deterministic: the unit test
+        // for clamping assumes the first `set_update_interval` call wins with a
+        // clamped 1, and test order within one binary is undefined.
+        config.lavalink.server.player_update_interval = 0;
+        let state = AppState::new(config);
+        let (sender, rx) = tokio::sync::mpsc::unbounded_channel();
+        let context = SocketContext::new(
+            SESSION.to_string(),
+            1,
+            state.manager().clone(),
+            None,
+            None,
+            sender,
+        );
+        state.sockets().insert(context);
+        (state, rx)
+    }
+
+    async fn patch_voice(state: &AppState, guild: u64) -> RestResult<Json<Player>> {
+        patch_player(
+            State(state.clone()),
+            Path((SESSION.to_string(), guild)),
+            Query(HashMap::new()),
+            Json(voice_update()),
+        )
+        .await
+    }
+
+    fn player_of(state: &AppState, guild: u64) -> Arc<crate::session::LavalinkPlayer> {
+        state
+            .sockets()
+            .get(SESSION)
+            .unwrap()
+            .get_player(guild)
+            .unwrap()
+    }
+
+    // Background path: PATCH answers Ok immediately; the refused handshake
+    // retries in the background and the session observes a close event.
+    #[tokio::test]
+    async fn background_path_accepts_then_reports_close_event() {
+        let (state, mut rx) = patched_state(true).await;
+        let result = patch_voice(&state, GUILD_BG).await;
+        assert!(result.is_ok(), "background PATCH answers immediately");
+
+        let event = tokio::time::timeout(Duration::from_secs(30), rx.recv())
+            .await
+            .expect("close event arrives")
+            .expect("channel open");
+        match event {
+            Message::Event(boxed) => match *boxed {
+                EmittedEvent::WebSocketClosed {
+                    code,
+                    by_remote,
+                    guild_id,
+                    ..
+                } => {
+                    assert_eq!(code, 1006);
+                    assert!(by_remote);
+                    assert_eq!(guild_id, GUILD_BG.to_string());
+                }
+                other => panic!("expected WebSocketClosed, got {other:?}"),
+            },
+            other => panic!("expected event message, got {other:?}"),
+        }
+        assert!(!player_of(&state, GUILD_BG).claim_is(&refused_voice()));
+    }
+
+    // Synchronous fallback: the same refused handshake fails the PATCH itself.
+    #[tokio::test]
+    async fn sync_path_returns_handshake_error() {
+        let (state, _rx) = patched_state(false).await;
+        let result = patch_voice(&state, GUILD_SYNC).await;
+        let err = result.expect_err("sync PATCH surfaces the handshake failure");
+        assert_eq!(err.status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert!(!player_of(&state, GUILD_SYNC).claim_is(&refused_voice()));
+    }
 }

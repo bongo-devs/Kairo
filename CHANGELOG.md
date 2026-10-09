@@ -22,6 +22,8 @@ What this means for clients:
   object).
 - A PATCH carrying voice + track may start playback before the connection is
   ready. Frames wait in the track buffer until the send loop drains them.
+- `backgroundConnect: false` restores the blocking path: the PATCH waits for
+  one handshake and its errors return `500`/`503` from the PATCH itself.
 
 Why: a large bot reconnecting 1000+ guilds at once opened that many simultaneous
 TLS + UDP handshakes, starving search/playback HTTP while voice alone looked
@@ -42,11 +44,11 @@ lavalink:
 ### New Prometheus metrics
 
 - `kairo_voice_handshakes_total`, `kairo_voice_handshake_queue_timeouts_total`
-- `kairo_voice_handshakes_in_flight`, `kairo_voice_handshake_queue_waiting`
-- `kairo_voice_queue_wait` / `kairo_voice_handshake_duration` histograms (ms)
 - `kairo_voice_handshake_success_total`, `kairo_voice_handshake_timeout_total`,
   `kairo_voice_handshake_error_total`, `kairo_voice_handshake_stale_dropped_total`,
   `kairo_voice_handshake_retries_total`
+- `kairo_voice_handshakes_in_flight`, `kairo_voice_handshake_queue_waiting`
+- `kairo_voice_queue_wait` / `kairo_voice_handshake_duration` histograms (ms)
 - `kairo_runtime_workers`, `kairo_runtime_alive_tasks`,
   `kairo_runtime_global_queue_depth`,
   `kairo_runtime_worker_busy_seconds_total{worker}` (use `rate()` for busy %)

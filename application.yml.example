@@ -31,6 +31,7 @@ lavalink:
     #   maxConcurrentHandshakes: 32 # live handshakes; rest park (no worker) until a slot frees
     #   queueWarnMs: 15000 # warn when a queued connect waits past this; the wait itself is unbounded
     #   handshakeTimeoutMs: 10000 # outer bound per handshake; voice crate aborts inside at 30s
+    #   backgroundConnect: true # answer PATCH immediately and connect async; false blocks like classic Lavalink
     # Outbound IP rotation. Binds each request to an address from these CIDR blocks and
     # rotates away from rate-limited ones. A bare address counts as a /32 or /128.
     # ratelimit:
