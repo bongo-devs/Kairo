@@ -151,6 +151,43 @@ impl CpuState {
     }
 }
 
+/// Open file descriptor count on Linux via `/proc/self/fd`.
+///
+/// Returns `None` off Linux or when the directory cannot be read. Cheap enough
+/// for a 30 s monitor tick: one `readdir` of a few thousand entries. This is the
+/// gauge that decides the FD-exhaustion theory: if `fd_count` is far below the
+/// limit while HTTP still fails, the limit was never the cause.
+#[cfg(target_os = "linux")]
+pub fn fd_count() -> Option<usize> {
+    std::fs::read_dir("/proc/self/fd")
+        .ok()
+        .map(|entries| entries.count())
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn fd_count() -> Option<usize> {
+    None
+}
+
+/// Current `RLIMIT_NOFILE` soft limit, or `None` when it cannot be read.
+#[cfg(unix)]
+pub fn fd_limit() -> Option<u64> {
+    let mut lim = libc::rlimit {
+        rlim_cur: 0,
+        rlim_max: 0,
+    };
+    if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut lim) } == 0 {
+        Some(lim.rlim_cur)
+    } else {
+        None
+    }
+}
+
+#[cfg(not(unix))]
+pub fn fd_limit() -> Option<u64> {
+    None
+}
+
 /// Host and process CPU load, resampled at most once per refresh interval.
 pub fn cpu() -> Cpu {
     let mut guard = CPU.lock().unwrap();
