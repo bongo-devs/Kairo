@@ -103,6 +103,7 @@ impl AppState {
         crate::session::player::set_update_interval(
             state.inner.config.lavalink.server.player_update_interval,
         );
+        crate::session::voice_gate::configure(&state.inner.config.lavalink.server.voice);
         state.spawn_player_cleanup_task();
         spawn_heap_reclaim_task();
         state

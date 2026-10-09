@@ -23,6 +23,14 @@ lavalink:
     #   proxyPassword: ""
     timeouts:
       connectTimeoutMs: 3000 # TCP+TLS connect timeout; 0 = OS default
+    # Discord voice handshake throttling. A large bot reconnecting 1000+ guilds
+    # at once would otherwise open that many simultaneous TLS+UDP handshakes and
+    # starve search/playback HTTP. PATCH answers immediately; connects drain in
+    # the background through maxConcurrentHandshakes slots.
+    # voice:
+    #   maxConcurrentHandshakes: 32 # live handshakes; rest park (no worker) until a slot frees
+    #   queueWarnMs: 15000 # warn when a queued connect waits past this; the wait itself is unbounded
+    #   handshakeTimeoutMs: 10000 # outer bound per handshake; voice crate aborts inside at 30s
     # Outbound IP rotation. Binds each request to an address from these CIDR blocks and
     # rotates away from rate-limited ones. A bare address counts as a /32 or /128.
     # ratelimit:
