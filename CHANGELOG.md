@@ -14,14 +14,18 @@
   Parked sessions pin their players and queued events until the timeout, same
   trade-off as upstream; operators control it via the timeout they send.
 
-### Behavior change: voice PATCH no longer blocks on the Discord handshake
+### Behavior change: voice PATCH handshake mode (`backgroundConnect`)
 
-`PATCH /v4/sessions/{sessionId}/players/{guildId}` with a `voice` object now
-returns `200` with the current player snapshot immediately and connects in the
-background. Previously it blocked until the gateway + UDP handshake finished
-(up to 30 s) or failed.
+`PATCH /v4/sessions/{sessionId}/players/{guildId}` with a `voice` object
+follows `lavalink.server.voice.backgroundConnect` (default `false`, classic
+blocking behavior):
 
-What this means for clients:
+- `false`: the PATCH waits for one gated handshake and returns the connected
+  snapshot; handshake errors return `500`/`503` from the PATCH itself, as before.
+- `true`: the PATCH returns `200` with the current snapshot immediately and
+  connects in the background.
+
+What this means for clients when background connects are enabled:
 
 - A `200` means "accepted, connecting", not "connected". Watch `connected` in
   `playerUpdate` / `GET player`: it flips to `true` on success (the commit sends
@@ -34,13 +38,11 @@ What this means for clients:
   object).
 - A PATCH carrying voice + track may start playback before the connection is
   ready. Frames wait in the track buffer until the send loop drains them.
-- `backgroundConnect: false` restores the blocking path: the PATCH waits for
-  one handshake and its errors return `500`/`503` from the PATCH itself.
 
-Why: a large bot reconnecting 1000+ guilds at once opened that many simultaneous
-TLS + UDP handshakes, starving search/playback HTTP while voice alone looked
-connected. Background connects drain through a 32-slot gate instead of failing
-the queue tail.
+Why the background mode exists: a large bot reconnecting 1000+ guilds at once
+opened that many simultaneous TLS + UDP handshakes, starving search/playback
+HTTP while voice alone looked connected. Background connects drain through a
+32-slot gate instead of failing the queue tail.
 
 ### New config: `lavalink.server.voice.*`
 
