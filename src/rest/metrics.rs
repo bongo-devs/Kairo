@@ -20,7 +20,6 @@ pub async fn metrics(State(state): State<AppState>) -> Response {
     let body = render(&state.build_stats(None));
     ([(header::CONTENT_TYPE, CONTENT_TYPE)], body).into_response()
 }
-
 fn render(stats: &Stats) -> String {
     let mut out = String::new();
     let memory_help = "Memory statistics in bytes.";
@@ -86,7 +85,96 @@ fn render(stats: &Stats) -> String {
         &format!("{cpu_help} (LL Load)"),
         stats.cpu.lavalink_load,
     );
+    voice_gate_metrics(&mut out);
+    runtime_metrics(&mut out);
     out
+}
+
+// Voice-handshake gate families (`kairo_voice_*`). Counters are monotonic;
+// the wait/handshake distributions are histograms so `histogram_quantile`
+// works without the lossy lifetime averages in logs.
+fn voice_gate_metrics(out: &mut String) {
+    let gate = crate::session::voice_gate::metrics();
+    counter(
+        out,
+        "kairo_voice_handshakes_total",
+        "Total voice handshakes admitted by the gate.",
+        gate.total_acquired as f64,
+    );
+    counter(
+        out,
+        "kairo_voice_handshake_queue_timeouts_total",
+        "Foreground gate acquires that hit the queue wait (background storm path waits unbounded instead).",
+        gate.total_timed_out as f64,
+    );
+    gauge(
+        out,
+        "kairo_voice_handshakes_in_flight",
+        "Voice handshakes currently holding a gate permit.",
+        gate.in_flight as f64,
+    );
+    gauge(
+        out,
+        "kairo_voice_handshake_queue_waiting",
+        "Voice connects currently parked in the gate queue.",
+        gate.waiting as f64,
+    );
+    histogram_ms(
+        out,
+        "kairo_voice_queue_wait",
+        "Gate queue wait distribution in milliseconds.",
+        &crate::session::voice_gate::wait_histogram(),
+    );
+    histogram_ms(
+        out,
+        "kairo_voice_handshake_duration",
+        "Handshake permit-hold distribution in milliseconds.",
+        &crate::session::voice_gate::handshake_histogram(),
+    );
+}
+
+// Tokio runtime families (`kairo_runtime_*`), stable metrics only: per-worker
+// cumulative busy seconds (use `rate()` for busy %), alive tasks, global queue.
+// Blocking-pool gauges need `--cfg tokio_unstable` (see `runtime_metrics`) and
+// are deliberately not exported: a global rustflag would silently drop out from
+// under any user with their own RUSTFLAGS set.
+fn runtime_metrics(out: &mut String) {
+    let m = tokio::runtime::Handle::current().metrics();
+    gauge(
+        out,
+        "kairo_runtime_workers",
+        "Tokio worker threads.",
+        m.num_workers() as f64,
+    );
+    gauge(
+        out,
+        "kairo_runtime_alive_tasks",
+        "Tasks currently alive in the runtime.",
+        m.num_alive_tasks() as f64,
+    );
+    gauge(
+        out,
+        "kairo_runtime_global_queue_depth",
+        "Tasks pending in the runtime global queue.",
+        m.global_queue_depth() as f64,
+    );
+    // Cumulative per-worker busy time; `rate(kairo_runtime_worker_busy_seconds_total[1m])`
+    // is the worker busy fraction.
+    let _ = writeln!(
+        out,
+        "# HELP kairo_runtime_worker_busy_seconds_total Cumulative worker busy time in seconds."
+    );
+    let _ = writeln!(
+        out,
+        "# TYPE kairo_runtime_worker_busy_seconds_total counter"
+    );
+    for worker in 0..m.num_workers() {
+        let secs = m.worker_total_busy_duration(worker).as_secs_f64();
+        let _ = writeln!(
+            out,
+            "kairo_runtime_worker_busy_seconds_total{{worker=\"{worker}\"}} {secs}"
+        );
+    }
 }
 
 // Append one gauge family to `out`: its `# HELP` line, its `# TYPE` line, then the value.
@@ -95,4 +183,33 @@ fn gauge(out: &mut String, name: &str, help: &str, value: f64) {
     let _ = writeln!(out, "# HELP {name} {help}");
     let _ = writeln!(out, "# TYPE {name} gauge");
     let _ = writeln!(out, "{name} {value}");
+}
+
+// Append one counter family.
+fn counter(out: &mut String, name: &str, help: &str, value: f64) {
+    let _ = writeln!(out, "# HELP {name} {help}");
+    let _ = writeln!(out, "# TYPE {name} counter");
+    let _ = writeln!(out, "{name} {value}");
+}
+
+// Append one histogram family (cumulative buckets, `+Inf`, count, sum) from
+// `voice_gate` bucket data. Bucket bounds and observations are milliseconds.
+fn histogram_ms(
+    out: &mut String,
+    name: &str,
+    help: &str,
+    data: &crate::session::voice_gate::HistogramData,
+) {
+    let _ = writeln!(out, "# HELP {name} {help}");
+    let _ = writeln!(out, "# TYPE {name} histogram");
+    let mut cumulative = 0u64;
+    for (bound, count) in data.buckets.iter().zip(data.counts.iter()) {
+        cumulative += count;
+        let _ = writeln!(out, "{name}_bucket{{le=\"{bound}\"}} {cumulative}");
+    }
+    // Any observation past the last bound plus the explicit trailing slot.
+    cumulative += data.counts.get(data.buckets.len()).copied().unwrap_or(0);
+    let _ = writeln!(out, "{name}_bucket{{le=\"+Inf\"}} {cumulative}");
+    let _ = writeln!(out, "{name}_count {}", data.total);
+    let _ = writeln!(out, "{name}_sum {}", data.sum_ms);
 }
