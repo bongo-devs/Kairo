@@ -204,6 +204,30 @@ impl VoiceEventListener for VoiceCloseForwarder {
     }
 }
 
+/// Releases a guild's handshake claim when dropped unless the claim moved on.
+///
+/// The guard is built before the background task is spawned and moved into it,
+/// so every exit releases the claim: success, handshake error, timeout, panic
+/// unwind, even an abort before the first poll (dropping the task future drops
+/// the guard). A retry with the same target therefore always runs a new
+/// handshake instead of seeing a stale claim.
+pub struct VoiceClaimGuard {
+    player: Arc<LavalinkPlayer>,
+    voice: VoiceState,
+}
+
+impl VoiceClaimGuard {
+    pub fn new(player: Arc<LavalinkPlayer>, voice: VoiceState) -> Self {
+        Self { player, voice }
+    }
+}
+
+impl Drop for VoiceClaimGuard {
+    fn drop(&mut self) {
+        self.player.clear_voice_claim(&self.voice);
+    }
+}
+
 /// A guild's player: the engine player, the voice connection, and protocol state.
 pub struct LavalinkPlayer {
     guild_id: u64,
@@ -213,6 +237,10 @@ pub struct LavalinkPlayer {
     loss: Arc<AudioLossCounter>,
     voice: Mutex<Option<VoiceConnection>>,
     voice_state: Mutex<Option<VoiceState>>,
+    // Target of the handshake currently running in the background, if any. Duplicate
+    // VOICE_SERVER_UPDATE PATCHes for the same target skip the gate instead of each
+    // running a handshake.
+    voice_claim: Mutex<Option<VoiceState>>,
     // Serializes a whole `PATCH .../players/{guildId}` body.
     patch_lock: tokio::sync::Mutex<()>,
     filters: Mutex<Filters>,
@@ -287,6 +315,7 @@ impl LavalinkPlayer {
             end_marker: Mutex::new(None),
             lyrics,
             update_task: Mutex::new(None),
+            voice_claim: Mutex::new(None),
         })
     }
 
@@ -471,29 +500,69 @@ impl LavalinkPlayer {
         self.patch_lock.lock().await
     }
 
-    /// Apply a voice state, reconnecting to Discord if the connection details changed.
+    /// Whether `voice` differs from the current state or the connection dropped.
     ///
-    /// Async because the gateway and UDP handshake happen here; no `std::sync::Mutex` is held across
-    /// the await. Serializing against other PATCHes is the caller's job through
-    /// [`lock_patch`](LavalinkPlayer::lock_patch).
-    pub async fn apply_voice(&self, voice: VoiceState) -> Result<(), RestError> {
-        let needs_reconnect = {
-            let current = self.voice_state.lock().unwrap();
-            match current.as_ref() {
-                Some(existing) => {
-                    existing.token != voice.token
-                        || existing.endpoint != voice.endpoint
-                        || existing.session_id != voice.session_id
-                        || existing.channel_id != voice.channel_id
-                        || !self.is_connected()
-                }
-                None => true,
+    /// Cheap synchronous check used before paying for a handshake and again when
+    /// committing one. Both checks dedupe repeated `VOICE_SERVER_UPDATE` PATCHes
+    /// so an older handshake cannot displace a newer connection.
+    pub fn voice_reconnect(&self, voice: &VoiceState) -> bool {
+        let current = self.voice_state.lock().unwrap();
+        match current.as_ref() {
+            Some(existing) => {
+                existing.token != voice.token
+                    || existing.endpoint != voice.endpoint
+                    || existing.session_id != voice.session_id
+                    || existing.channel_id != voice.channel_id
+                    || !self.is_connected()
             }
-        };
-        if !needs_reconnect {
-            return Ok(());
+            None => true,
         }
+    }
 
+    /// Claim this guild's background handshake slot for `voice`.
+    ///
+    /// Returns `false` when a handshake for the same target is already running:
+    /// the duplicate PATCH skips the gate instead of running a second handshake.
+    /// A PATCH for a different target overwrites the claim; the older task sees
+    /// the mismatch on commit and drops its connection (see `commit_voice`).
+    pub fn try_claim_voice(&self, voice: &VoiceState) -> bool {
+        let mut claim = self.voice_claim.lock().unwrap_or_else(|e| e.into_inner());
+        if claim.as_ref().is_some_and(|current| current == voice) {
+            return false;
+        }
+        *claim = Some(voice.clone());
+        true
+    }
+
+    /// Whether `voice` still owns this guild's handshake claim.
+    pub fn claim_is(&self, voice: &VoiceState) -> bool {
+        self.voice_claim
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            == Some(voice)
+    }
+
+    /// Release the handshake claim when it still belongs to `voice`.
+    pub fn clear_voice_claim(&self, voice: &VoiceState) {
+        let mut claim = self.voice_claim.lock().unwrap_or_else(|e| e.into_inner());
+        if claim.as_ref() == Some(voice) {
+            *claim = None;
+        }
+    }
+
+    /// Whether a finished handshake for `voice` may be stored: the claim still
+    /// belongs to it and the guild still needs it. Split out so the decision
+    /// matrix is unit-testable without a live voice connection.
+    fn commit_allowed(&self, voice: &VoiceState) -> bool {
+        self.claim_is(voice) && self.voice_reconnect(voice)
+    }
+
+    /// Run the Discord gateway + UDP handshake. No player locks are held across the await.
+    ///
+    /// The caller must hold a `voice_gate` permit while calling this. DAVE/MLS setup,
+    /// TLS and UDP discovery all happen here; the returned connection is not yet stored.
+    pub async fn handshake_voice(&self, voice: &VoiceState) -> Result<VoiceConnection, RestError> {
         let channel_id = voice
             .channel_id
             .as_deref()
@@ -519,20 +588,97 @@ impl LavalinkPlayer {
             loss: Arc::clone(&self.loss),
         };
 
-        // Tear the old connection down before the new handshake: two send loops on one player would
-        // split the Opus stream between them.
+        let started = std::time::Instant::now();
+        let result = VoiceConnection::connect_with_dispatcher(info, provider, dispatcher).await;
+        let elapsed_ms = started.elapsed().as_millis();
+        match result {
+            Ok(connection) => {
+                tracing::debug!(
+                    guild_id = self.guild_id,
+                    elapsed_ms,
+                    "voice handshake succeeded"
+                );
+                Ok(connection)
+            }
+            Err(err) => {
+                tracing::warn!(
+                    guild_id = self.guild_id,
+                    elapsed_ms,
+                    error = %err,
+                    "voice handshake failed"
+                );
+                Err(RestError::internal(format!(
+                    "voice connection failed: {err}"
+                )))
+            }
+        }
+    }
+
+    /// Store a finished handshake. The caller must hold `lock_patch`.
+    ///
+    /// Drops `connection` and returns `false` when the claim moved on (a newer PATCH
+    /// claimed a different target) or the guild no longer needs this target, so a
+    /// stale handshake never displaces a fresh connection.
+    pub fn commit_voice(&self, voice: VoiceState, connection: VoiceConnection) -> bool {
+        if !self.commit_allowed(&voice) {
+            connection.disconnect();
+            return false;
+        }
         if let Some(previous) = self.voice.lock().unwrap().take() {
             previous.disconnect();
         }
-
-        let connection = VoiceConnection::connect_with_dispatcher(info, provider, dispatcher)
-            .await
-            .map_err(|err| RestError::internal(format!("voice connection failed: {err}")))?;
         connection.set_speaking(true);
-
         *self.voice.lock().unwrap() = Some(connection);
         *self.voice_state.lock().unwrap() = Some(voice);
-        Ok(())
+        true
+    }
+
+    /// Drive one background voice connect to completion: gate, handshake with an
+    /// outer timeout, commit under the guild lock, then a player update on success.
+    ///
+    /// Takes ownership of a [`VoiceClaimGuard`] built by the spawner: the claim
+    /// releases on every exit path, including an abort before the first poll.
+    /// The caller must have claimed the guild via [`try_claim_voice`](Self::try_claim_voice)
+    /// first. The `handshake` future is injected so tests can run this without a
+    /// network connection.
+    pub async fn background_connect(
+        guard: VoiceClaimGuard,
+        handshake_timeout: Duration,
+        handshake: impl std::future::Future<Output = Result<VoiceConnection, RestError>> + Send,
+    ) {
+        let player = Arc::clone(&guard.player);
+        let voice = guard.voice.clone();
+        // Held to the end of the task: every `return` below, a panic unwind and a
+        // task abort all drop it, releasing the claim exactly when it is still ours.
+        let _guard = guard;
+        let _permit = match super::voice_gate::acquire_background().await {
+            Ok(permit) => permit,
+            Err(err) => {
+                tracing::warn!(
+                    guild_id = player.guild_id,
+                    error = %err.message,
+                    "voice background acquire failed"
+                );
+                return;
+            }
+        };
+        let connection = match tokio::time::timeout(handshake_timeout, handshake).await {
+            Ok(Ok(connection)) => connection,
+            // `handshake_voice` already warned with the elapsed time.
+            Ok(Err(_)) => return,
+            Err(_) => {
+                tracing::warn!(
+                    guild_id = player.guild_id,
+                    timeout_ms = handshake_timeout.as_millis(),
+                    "voice handshake timed out; permit released"
+                );
+                return;
+            }
+        };
+        let _serialized = player.lock_patch().await;
+        if player.commit_voice(voice, connection) {
+            player.send_player_update();
+        }
     }
 
     pub fn player_update_message(&self) -> Message {

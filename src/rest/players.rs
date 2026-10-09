@@ -14,6 +14,7 @@ use crate::protocol::omissible::Omissible;
 use crate::protocol::player::{Player, PlayerUpdate};
 use crate::protocol::track::Track;
 use crate::rest::error::{RestError, RestResult};
+use crate::session::player::{LavalinkPlayer, VoiceClaimGuard};
 use crate::session::SocketContext;
 
 fn session(state: &AppState, session_id: &str) -> RestResult<Arc<SocketContext>> {
@@ -175,6 +176,33 @@ pub async fn patch_player(
         None
     };
 
+    // Voice connects in the background and the PATCH answers immediately. Awaiting
+    // 1000 handshakes inline would fail the queue tail with 503s that non-retrying
+    // clients never recover from; parked background tasks hold no worker and drain
+    // through the gate instead. Trade-off: a PATCH carrying voice + track may start
+    // playback before the connection is ready. Frames wait in the buffer meanwhile
+    // and the client learns the outcome from player updates: `connected: true` on
+    // success (sent by the commit and the gateway-ready event), still `connected:
+    // false` on failure, which is server-logged with the guild id and cause. Voice
+    // validation errors stay synchronous (`400` below). Clients should treat a
+    // `connected: false` that never flips as a failed connect and re-PATCH.
+    match update.voice {
+        Omissible::Present(voice)
+            if player.voice_reconnect(&voice) && player.try_claim_voice(&voice) =>
+        {
+            let task_player = Arc::clone(&player);
+            let handshake_timeout = state.config().lavalink.server.voice.handshake_timeout();
+            let hs_player = Arc::clone(&task_player);
+            let fut_voice = voice.clone();
+            let guard = VoiceClaimGuard::new(task_player, voice);
+            tokio::spawn(async move {
+                let handshake = hs_player.handshake_voice(&fut_voice);
+                LavalinkPlayer::background_connect(guard, handshake_timeout, handshake).await;
+            });
+        }
+        _ => {}
+    }
+
     // Serialise the mutations per guild so a concurrent PATCH can't interleave halfway through.
     let _serialized = player.lock_patch().await;
 
@@ -210,10 +238,8 @@ pub async fn patch_player(
         }
     }
 
-    // Voice first, so a subsequent play has a live connection.
-    if let Omissible::Present(voice) = update.voice {
-        player.apply_voice(voice).await?;
-    }
+    // Voice is connecting in the background (see above); playback mutations apply
+    // inline as before.
 
     // Field order: paused, userData, volume, position, endTime, filters, then the load. The first
     // four apply here only when no track is being loaded.

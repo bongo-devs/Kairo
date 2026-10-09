@@ -45,7 +45,7 @@ pub struct PlayerState {
 }
 
 /// The Discord voice connection state.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoiceState {
     /// The voice token from `VOICE_SERVER_UPDATE`.
