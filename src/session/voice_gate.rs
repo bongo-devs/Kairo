@@ -36,6 +36,11 @@ static TOTAL_ACQUIRED: AtomicU64 = AtomicU64::new(0);
 static TOTAL_TIMED_OUT: AtomicU64 = AtomicU64::new(0);
 static TOTAL_WAIT_MS: AtomicU64 = AtomicU64::new(0);
 static TOTAL_HANDSHAKE_MS: AtomicU64 = AtomicU64::new(0);
+static TOTAL_SUCCESS: AtomicU64 = AtomicU64::new(0);
+static TOTAL_HANDSHAKE_TIMEOUT: AtomicU64 = AtomicU64::new(0);
+static TOTAL_HANDSHAKE_ERROR: AtomicU64 = AtomicU64::new(0);
+static TOTAL_STALE_DROPPED: AtomicU64 = AtomicU64::new(0);
+static TOTAL_RETRIES: AtomicU64 = AtomicU64::new(0);
 static WAIT_COUNTS: OnceLock<Vec<AtomicU64>> = OnceLock::new();
 static HANDSHAKE_COUNTS: OnceLock<Vec<AtomicU64>> = OnceLock::new();
 
@@ -101,6 +106,35 @@ pub struct VoiceGateMetrics {
     pub total_timed_out: u64,
     pub avg_wait_ms: u64,
     pub avg_handshake_ms: u64,
+    pub total_success: u64,
+    pub total_handshake_timeout: u64,
+    pub total_handshake_error: u64,
+    pub total_stale_dropped: u64,
+    pub total_retries: u64,
+}
+
+/// Terminal outcome of one background connect, for the Prometheus counters.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HandshakeOutcome {
+    Success,
+    Timeout,
+    Error,
+    StaleDropped,
+}
+
+/// Record one terminal handshake outcome.
+pub fn record_outcome(outcome: HandshakeOutcome) {
+    match outcome {
+        HandshakeOutcome::Success => TOTAL_SUCCESS.fetch_add(1, Ordering::Relaxed),
+        HandshakeOutcome::Timeout => TOTAL_HANDSHAKE_TIMEOUT.fetch_add(1, Ordering::Relaxed),
+        HandshakeOutcome::Error => TOTAL_HANDSHAKE_ERROR.fetch_add(1, Ordering::Relaxed),
+        HandshakeOutcome::StaleDropped => TOTAL_STALE_DROPPED.fetch_add(1, Ordering::Relaxed),
+    };
+}
+
+/// Record one retry (an attempt past the first).
+pub fn record_retry() {
+    TOTAL_RETRIES.fetch_add(1, Ordering::Relaxed);
 }
 
 /// Acquire a handshake slot, failing fast after `queue_wait`.
@@ -182,6 +216,11 @@ pub fn metrics() -> VoiceGateMetrics {
             .load(Ordering::Relaxed)
             .checked_div(acquired)
             .unwrap_or(0),
+        total_success: TOTAL_SUCCESS.load(Ordering::Relaxed),
+        total_handshake_timeout: TOTAL_HANDSHAKE_TIMEOUT.load(Ordering::Relaxed),
+        total_handshake_error: TOTAL_HANDSHAKE_ERROR.load(Ordering::Relaxed),
+        total_stale_dropped: TOTAL_STALE_DROPPED.load(Ordering::Relaxed),
+        total_retries: TOTAL_RETRIES.load(Ordering::Relaxed),
     }
 }
 

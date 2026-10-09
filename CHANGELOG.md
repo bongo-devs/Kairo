@@ -14,9 +14,10 @@ What this means for clients:
 - A `200` means "accepted, connecting", not "connected". Watch `connected` in
   `playerUpdate` / `GET player`: it flips to `true` on success (the commit sends
   an update, and the gateway-ready event sends another).
-- A `connected: false` that never flips is a failed connect. The failure is
-  server-logged with guild id, elapsed time and cause. Re-PATCH to retry; there
-  is no failure event in the v4 protocol.
+- A failed connect retries up to 3 times with 500 ms doubling backoff, then the
+  session emits a `WebSocketClosedEvent` (`code` 1006, `by_remote: true`,
+  reason names the attempt count). There is no other failure event in v4, so a
+  `connected: false` that never flips and no close event means still connecting.
 - Voice validation errors are still synchronous (`400` for an incomplete voice
   object).
 - A PATCH carrying voice + track may start playback before the connection is
@@ -43,6 +44,9 @@ lavalink:
 - `kairo_voice_handshakes_total`, `kairo_voice_handshake_queue_timeouts_total`
 - `kairo_voice_handshakes_in_flight`, `kairo_voice_handshake_queue_waiting`
 - `kairo_voice_queue_wait` / `kairo_voice_handshake_duration` histograms (ms)
+- `kairo_voice_handshake_success_total`, `kairo_voice_handshake_timeout_total`,
+  `kairo_voice_handshake_error_total`, `kairo_voice_handshake_stale_dropped_total`,
+  `kairo_voice_handshake_retries_total`
 - `kairo_runtime_workers`, `kairo_runtime_alive_tasks`,
   `kairo_runtime_global_queue_depth`,
   `kairo_runtime_worker_busy_seconds_total{worker}` (use `rate()` for busy %)

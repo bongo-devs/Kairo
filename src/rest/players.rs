@@ -182,8 +182,8 @@ pub async fn patch_player(
     // through the gate instead. Trade-off: a PATCH carrying voice + track may start
     // playback before the connection is ready. Frames wait in the buffer meanwhile
     // and the client learns the outcome from player updates: `connected: true` on
-    // success (sent by the commit and the gateway-ready event), still `connected:
-    // false` on failure, which is server-logged with the guild id and cause. Voice
+    // success (sent by the commit and the gateway-ready event), a
+    // `WebSocketClosedEvent` (1006) on final failure after retries. Voice
     // validation errors stay synchronous (`400` below). Clients should treat a
     // `connected: false` that never flips as a failed connect and re-PATCH.
     match update.voice {
@@ -196,8 +196,10 @@ pub async fn patch_player(
             let fut_voice = voice.clone();
             let guard = VoiceClaimGuard::new(task_player, voice);
             tokio::spawn(async move {
-                let handshake = hs_player.handshake_voice(&fut_voice);
-                LavalinkPlayer::background_connect(guard, handshake_timeout, handshake).await;
+                LavalinkPlayer::background_connect(guard, handshake_timeout, || {
+                    hs_player.handshake_voice(&fut_voice)
+                })
+                .await;
             });
         }
         _ => {}

@@ -614,6 +614,27 @@ impl LavalinkPlayer {
         }
     }
 
+    /// Tell the client a background connect gave up: a `WebSocketClosedEvent`
+    /// with abnormal-closure code 1006, so existing clients observe the failure
+    /// without any protocol change. The claim releases via the task guard.
+    fn emit_connect_failed(&self, attempts: u32, cause: &str) {
+        tracing::warn!(
+            guild_id = self.guild_id,
+            attempts,
+            cause,
+            "voice background connect failed; emitting close event"
+        );
+        if let Some(context) = self.shared.context.upgrade() {
+            context.send_message(Message::event(EmittedEvent::WebSocketClosed {
+                guild_id: self.guild_id.to_string(),
+                code: 1006,
+                reason: format!("voice handshake failed after {attempts} attempts ({cause})"),
+                by_remote: true,
+            }));
+        }
+        // The task guard releases the claim on return.
+    }
+
     /// Store a finished handshake. The caller must hold `lock_patch`.
     ///
     /// Drops `connection` and returns `false` when the claim moved on (a newer PATCH
@@ -633,52 +654,116 @@ impl LavalinkPlayer {
         true
     }
 
-    /// Drive one background voice connect to completion: gate, handshake with an
-    /// outer timeout, commit under the guild lock, then a player update on success.
+    /// Maximum handshake attempts per background connect, then a final failure.
+    /// Three tries ride out a single blip (refused reset, TLS hiccup) without
+    /// turning every flap into a reconnect storm of its own.
+    const MAX_HANDSHAKE_ATTEMPTS: u32 = 3;
+
+    /// Drive one background voice connect to completion: gate, up to three
+    /// handshakes with exponential backoff, commit under the guild lock, then a
+    /// player update on success.
     ///
     /// Takes ownership of a [`VoiceClaimGuard`] built by the spawner: the claim
     /// releases on every exit path, including an abort before the first poll.
     /// The caller must have claimed the guild via [`try_claim_voice`](Self::try_claim_voice)
-    /// first. The `handshake` future is injected so tests can run this without a
-    /// network connection.
-    pub async fn background_connect(
+    /// first. Handshakes come from the `make_handshake` factory (one fresh future
+    /// per attempt) so tests can run this without a network connection.
+    pub async fn background_connect<Fut>(
         guard: VoiceClaimGuard,
         handshake_timeout: Duration,
-        handshake: impl std::future::Future<Output = Result<VoiceConnection, RestError>> + Send,
-    ) {
+        mut make_handshake: impl FnMut() -> Fut + Send,
+    ) where
+        Fut: std::future::Future<Output = Result<VoiceConnection, RestError>> + Send,
+    {
         let player = Arc::clone(&guard.player);
         let voice = guard.voice.clone();
         // Held to the end of the task: every `return` below, a panic unwind and a
         // task abort all drop it, releasing the claim exactly when it is still ours.
         let _guard = guard;
-        let _permit = match super::voice_gate::acquire_background().await {
-            Ok(permit) => permit,
-            Err(err) => {
-                tracing::warn!(
-                    guild_id = player.guild_id,
-                    error = %err.message,
-                    "voice background acquire failed"
-                );
-                return;
-            }
-        };
-        let connection = match tokio::time::timeout(handshake_timeout, handshake).await {
-            Ok(Ok(connection)) => connection,
-            // `handshake_voice` already warned with the elapsed time.
-            Ok(Err(_)) => return,
-            Err(_) => {
-                tracing::warn!(
-                    guild_id = player.guild_id,
-                    timeout_ms = handshake_timeout.as_millis(),
-                    "voice handshake timed out; permit released"
-                );
-                return;
+        let mut attempt = 0u32;
+        let connection = loop {
+            attempt += 1;
+            // Scoped so the permit drops before any backoff sleep below: a
+            // sleeping retry must not hold a gate slot.
+            let result = {
+                let _permit = match super::voice_gate::acquire_background().await {
+                    Ok(permit) => permit,
+                    Err(err) => {
+                        tracing::warn!(
+                            guild_id = player.guild_id,
+                            error = %err.message,
+                            "voice background acquire failed"
+                        );
+                        return;
+                    }
+                };
+                tokio::time::timeout(handshake_timeout, make_handshake()).await
+            };
+            match result {
+                Ok(Ok(connection)) => break connection,
+                // `handshake_voice` already warned with the elapsed time.
+                Ok(Err(_)) if attempt < Self::MAX_HANDSHAKE_ATTEMPTS => {
+                    super::voice_gate::record_retry();
+                    backoff_sleep(attempt).await;
+                }
+                Err(_) if attempt < Self::MAX_HANDSHAKE_ATTEMPTS => {
+                    tracing::warn!(
+                        guild_id = player.guild_id,
+                        timeout_ms = handshake_timeout.as_millis(),
+                        attempt,
+                        "voice handshake timed out; backing off"
+                    );
+                    super::voice_gate::record_retry();
+                    backoff_sleep(attempt).await;
+                }
+                Ok(Err(_)) => {
+                    super::voice_gate::record_outcome(super::voice_gate::HandshakeOutcome::Error);
+                    player.emit_connect_failed(attempt, "handshake error");
+                    return;
+                }
+                Err(_) => {
+                    super::voice_gate::record_outcome(super::voice_gate::HandshakeOutcome::Timeout);
+                    player.emit_connect_failed(attempt, "handshake timeout");
+                    return;
+                }
             }
         };
         let _serialized = player.lock_patch().await;
         if player.commit_voice(voice, connection) {
+            super::voice_gate::record_outcome(super::voice_gate::HandshakeOutcome::Success);
             player.send_player_update();
+        } else {
+            super::voice_gate::record_outcome(super::voice_gate::HandshakeOutcome::StaleDropped);
         }
+    }
+
+    /// Synchronous fallback for `backgroundConnect: false`: one gated handshake,
+    /// committed inline, errors returned to the PATCH caller as before.
+    pub async fn connect_voice_sync<Fut>(
+        guard: VoiceClaimGuard,
+        queue_wait: Duration,
+        handshake_timeout: Duration,
+        make_handshake: impl FnOnce() -> Fut + Send,
+    ) -> Result<bool, RestError>
+    where
+        Fut: std::future::Future<Output = Result<VoiceConnection, RestError>> + Send,
+    {
+        let player = Arc::clone(&guard.player);
+        let voice = guard.voice.clone();
+        let _guard = guard;
+        let _permit = super::voice_gate::acquire(queue_wait).await?;
+        let connection = match tokio::time::timeout(handshake_timeout, make_handshake()).await {
+            Ok(Ok(connection)) => connection,
+            Ok(Err(err)) => return Err(err),
+            Err(_) => {
+                return Err(RestError::internal(format!(
+                    "voice handshake timed out after {} ms",
+                    handshake_timeout.as_millis()
+                )));
+            }
+        };
+        let _serialized = player.lock_patch().await;
+        Ok(player.commit_voice(voice, connection))
     }
 
     pub fn player_update_message(&self) -> Message {
@@ -826,6 +911,15 @@ impl LavalinkPlayer {
     }
 }
 
+/// Sleep between handshake retries: 500 ms doubling per attempt, capped at 5 s.
+/// No gate permit is held across the sleep (see `background_connect`).
+async fn backoff_sleep(failed_attempt: u32) {
+    let ms = 500u64
+        .saturating_mul(1u64 << failed_attempt.min(4).saturating_sub(1))
+        .min(5_000);
+    tokio::time::sleep(Duration::from_millis(ms)).await;
+}
+
 mod events;
 mod markers;
 mod transition;
@@ -857,8 +951,18 @@ mod tests {
 
     // Needs a runtime: `LavalinkPlayer::new` captures `Handle::current`.
     async fn test_player() -> Arc<LavalinkPlayer> {
+        test_player_with_channel().await.0
+    }
+
+    async fn test_player_with_channel() -> (
+        Arc<LavalinkPlayer>,
+        tokio::sync::mpsc::UnboundedReceiver<Message>,
+        // Kept alive: the player holds only a `Weak` context, and dropping this
+        // would close the channel the failure event is asserted on.
+        Arc<SocketContext>,
+    ) {
         let manager = player::AudioPlayerManager::new();
-        let (sender, _rx) = tokio::sync::mpsc::unbounded_channel();
+        let (sender, rx) = tokio::sync::mpsc::unbounded_channel();
         let context = SocketContext::new(
             "test-session".to_string(),
             1,
@@ -868,7 +972,11 @@ mod tests {
             sender,
         );
         let engine = manager.create_player();
-        LavalinkPlayer::new(7, 1, engine, None, None, &context)
+        (
+            LavalinkPlayer::new(7, 1, engine, None, None, &context),
+            rx,
+            context,
+        )
     }
 
     fn boom() -> Result<VoiceConnection, RestError> {
@@ -942,7 +1050,8 @@ mod tests {
         let voice = test_voice("a");
         assert!(player.try_claim_voice(&voice));
         let guard = VoiceClaimGuard::new(Arc::clone(&player), voice.clone());
-        LavalinkPlayer::background_connect(guard, Duration::from_secs(5), async { boom() }).await;
+        LavalinkPlayer::background_connect(guard, Duration::from_secs(5), || async { boom() })
+            .await;
         assert!(!player.claim_is(&voice));
         // Retry with the same target claims anew.
         assert!(player.try_claim_voice(&voice));
@@ -955,11 +1064,9 @@ mod tests {
         let voice = test_voice("a");
         assert!(player.try_claim_voice(&voice));
         let guard = VoiceClaimGuard::new(Arc::clone(&player), voice.clone());
-        LavalinkPlayer::background_connect(
-            guard,
-            Duration::from_millis(50),
-            std::future::pending(),
-        )
+        LavalinkPlayer::background_connect(guard, Duration::from_millis(50), || {
+            std::future::pending()
+        })
         .await;
         assert!(!player.claim_is(&voice));
     }
@@ -975,7 +1082,7 @@ mod tests {
         let handle = tokio::spawn(LavalinkPlayer::background_connect(
             guard,
             Duration::from_secs(30),
-            async {
+            || async {
                 tokio::time::sleep(Duration::from_secs(60)).await;
                 boom()
             },
@@ -986,33 +1093,37 @@ mod tests {
     }
 
     // Ten racers, one barrier, gated stub: exactly one handshake may start for
-    // the same target. The stub blocks until released so the winner is still in
-    // flight while the losers attempt their claims.
+    // the same target. The stub blocks on a watch channel (not a one-shot
+    // notify, which a retry would miss) so the winner is still in flight while
+    // the losers attempt their claims; it then fails to also prove the single
+    // winner retries to three attempts.
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn duplicate_patch_racers_run_one_handshake() {
         use std::sync::atomic::{AtomicUsize, Ordering};
-        use tokio::sync::Notify;
-        static STARTS: AtomicUsize = AtomicUsize::new(0);
+        use tokio::sync::watch;
+        static WINNERS: AtomicUsize = AtomicUsize::new(0);
+        static CALLS: AtomicUsize = AtomicUsize::new(0);
 
         let player = test_player().await;
         let voice = test_voice("a");
         let barrier = Arc::new(Barrier::new(10));
-        let release = Arc::new(Notify::new());
+        let (release_tx, release_rx) = watch::channel(false);
         let tasks: Vec<_> = (0..10)
             .map(|_| {
                 let player = Arc::clone(&player);
                 let barrier = Arc::clone(&barrier);
-                let release = Arc::clone(&release);
+                let release_rx = release_rx.clone();
                 let voice = voice.clone();
                 tokio::spawn(async move {
                     barrier.wait().await;
                     if player.try_claim_voice(&voice) {
+                        WINNERS.fetch_add(1, Ordering::AcqRel);
                         let guard = VoiceClaimGuard::new(Arc::clone(&player), voice.clone());
-                        let stub = {
-                            let release = Arc::clone(&release);
+                        let stub = || {
+                            let mut release_rx = release_rx.clone();
                             async move {
-                                STARTS.fetch_add(1, Ordering::AcqRel);
-                                release.notified().await;
+                                CALLS.fetch_add(1, Ordering::AcqRel);
+                                let _ = release_rx.wait_for(|open| *open).await;
                                 boom()
                             }
                         };
@@ -1024,17 +1135,66 @@ mod tests {
             .collect();
         // Wait for the single winner to start, let the losers attempt, then release.
         for _ in 0..500 {
-            if STARTS.load(Ordering::Relaxed) == 1 {
+            if WINNERS.load(Ordering::Relaxed) == 1 {
                 break;
             }
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
         tokio::time::sleep(Duration::from_millis(200)).await;
-        release.notify_waiters();
+        let _ = release_tx.send(true);
         for task in tasks {
             task.await.unwrap();
         }
-        assert_eq!(STARTS.load(Ordering::Relaxed), 1);
+        assert_eq!(WINNERS.load(Ordering::Relaxed), 1);
+        // One winner, three attempts (initial plus two retries).
+        assert_eq!(CALLS.load(Ordering::Relaxed), 3);
         assert!(!player.claim_is(&voice));
+    }
+
+    // Failing stub, three attempts then give up: the factory ran exactly three
+    // times, a close event reached the session channel, and the claim cleared so
+    // the same target can retry afterwards.
+    #[tokio::test]
+    async fn background_connect_retries_then_reports_failure() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let (player, mut rx, _context) = test_player_with_channel().await;
+        let voice = test_voice("a");
+        static ATTEMPTS: AtomicUsize = AtomicUsize::new(0);
+
+        assert!(player.try_claim_voice(&voice));
+        let guard = VoiceClaimGuard::new(Arc::clone(&player), voice.clone());
+        LavalinkPlayer::background_connect(guard, Duration::from_secs(5), || async {
+            ATTEMPTS.fetch_add(1, Ordering::AcqRel);
+            boom()
+        })
+        .await;
+
+        assert_eq!(ATTEMPTS.load(Ordering::Relaxed), 3);
+        assert!(!player.claim_is(&voice));
+        // Same target can retry afterwards.
+        assert!(player.try_claim_voice(&voice));
+        player.clear_voice_claim(&voice);
+
+        let event = tokio::time::timeout(Duration::from_secs(5), rx.recv())
+            .await
+            .expect("close event arrives")
+            .expect("channel open");
+        match event {
+            Message::Event(boxed) => match *boxed {
+                EmittedEvent::WebSocketClosed {
+                    code,
+                    by_remote,
+                    guild_id,
+                    ..
+                } => {
+                    assert_eq!(code, 1006);
+                    assert!(by_remote);
+                    assert_eq!(guild_id, "7");
+                }
+                other => panic!("expected WebSocketClosed, got {other:?}"),
+            },
+            other => panic!("expected event message, got {other:?}"),
+        }
     }
 }

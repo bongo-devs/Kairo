@@ -107,6 +107,36 @@ fn voice_gate_metrics(out: &mut String) {
         "Foreground gate acquires that hit the queue wait (background storm path waits unbounded instead).",
         gate.total_timed_out as f64,
     );
+    counter(
+        out,
+        "kairo_voice_handshake_success_total",
+        "Background connects that committed a live connection.",
+        gate.total_success as f64,
+    );
+    counter(
+        out,
+        "kairo_voice_handshake_timeout_total",
+        "Background connects that exhausted retries on handshake timeout.",
+        gate.total_handshake_timeout as f64,
+    );
+    counter(
+        out,
+        "kairo_voice_handshake_error_total",
+        "Background connects that exhausted retries on handshake error.",
+        gate.total_handshake_error as f64,
+    );
+    counter(
+        out,
+        "kairo_voice_handshake_stale_dropped_total",
+        "Finished handshakes dropped because a newer PATCH claimed the guild.",
+        gate.total_stale_dropped as f64,
+    );
+    counter(
+        out,
+        "kairo_voice_handshake_retries_total",
+        "Retry attempts past the first handshake attempt.",
+        gate.total_retries as f64,
+    );
     gauge(
         out,
         "kairo_voice_handshakes_in_flight",
