@@ -253,7 +253,7 @@ impl Default for VoiceConfig {
             max_concurrent_handshakes: 32,
             queue_warn_ms: 15_000,
             handshake_timeout_ms: 10_000,
-            background_connect: true,
+            background_connect: false,
         }
     }
 }
