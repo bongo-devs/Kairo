@@ -18,22 +18,16 @@ use player::CrossfadeOptions;
 use crate::protocol::message::Message;
 use crate::session::player::LavalinkPlayer;
 
-// How many messages a paused session may hold before the oldest are dropped.
-//
-// Playback continues while a session is parked and a lyrics line event fires for every line, so an
-// unbounded queue over an hour-long resume window would pin every event of every player in memory.
-const RESUME_QUEUE_CAP: usize = 4_096;
-
 // Where outbound messages currently go.
 enum Outbound {
     // A live socket: send straight to the write task.
     Live(UnboundedSender<Message>),
-    // Resumable: queue until the client reconnects, capped at `RESUME_QUEUE_CAP`.
+    // Resumable: queue until the client reconnects. Unbounded like upstream:
+    // playback continues while parked, so any cap drops real track events on a
+    // long gap exactly when the client needs them to catch up.
     Queued {
         // The pending replay, oldest first.
         queue: VecDeque<Message>,
-        // How many messages were dropped because the queue was full.
-        dropped: u64,
     },
     // Permanently closed: drop messages.
     Closed,
@@ -103,25 +97,8 @@ impl SocketContext {
                 // A send error means the write task is gone; the socket close handler will follow.
                 let _ = sender.send(message);
             }
-            Outbound::Queued { queue, dropped } => {
-                // Player updates are not worth queueing: the resume sends current state anyway, and
-                // one update per player per second would evict real events from the capped queue.
-                if matches!(message, Message::PlayerUpdate { .. }) {
-                    return;
-                }
-                if queue.len() >= RESUME_QUEUE_CAP {
-                    queue.pop_front();
-                    *dropped += 1;
-                    if *dropped == 1 {
-                        tracing::warn!(
-                            session = %self.session_id,
-                            cap = RESUME_QUEUE_CAP,
-                            "resume queue full; dropping oldest events"
-                        );
-                    }
-                }
-                queue.push_back(message);
-            }
+
+            Outbound::Queued { queue } => queue.push_back(message),
             Outbound::Closed => {}
         }
     }
@@ -208,7 +185,6 @@ impl SocketContext {
         let mut outbound = self.outbound.lock().unwrap();
         *outbound = Outbound::Queued {
             queue: VecDeque::new(),
-            dropped: 0,
         };
     }
 
@@ -233,18 +209,10 @@ impl SocketContext {
     pub fn resume_with(&self, sender: UnboundedSender<Message>) -> u64 {
         self.stop_resume_timeout();
         let mut outbound = self.outbound.lock().unwrap();
-        let (queued, dropped) =
-            match std::mem::replace(&mut *outbound, Outbound::Live(sender.clone())) {
-                Outbound::Queued { queue, dropped } => (queue, dropped),
-                _ => (VecDeque::new(), 0),
-            };
-        if dropped > 0 {
-            tracing::warn!(
-                session = %self.session_id,
-                dropped,
-                "replaying a truncated resume queue"
-            );
-        }
+        let queued = match std::mem::replace(&mut *outbound, Outbound::Live(sender.clone())) {
+            Outbound::Queued { queue } => queue,
+            _ => VecDeque::new(),
+        };
         for message in queued {
             let _ = sender.send(message);
         }
@@ -313,14 +281,14 @@ mod tests {
         )
     }
 
-    // A parked session must not grow without bound: the oldest events go first, and the replay is
-    // exactly the newest RESUME_QUEUE_CAP in order.
+    // A parked session keeps every event like upstream: no cap, no dropping, so a
+    // long gap replays in full order instead of losing the oldest track events.
     #[test]
-    fn resume_queue_drops_oldest_at_cap() {
+    fn resume_queue_keeps_everything_in_order() {
         let (dead, mut dead_rx) = mpsc::unbounded_channel();
         let context = context(dead);
         context.pause();
-        for n in 0..RESUME_QUEUE_CAP + 3 {
+        for n in 0..5_000 {
             // `session_id` is just a cheap sequence marker here.
             context.send_message(Message::Ready {
                 resumed: false,
@@ -338,22 +306,19 @@ mod tests {
                 other => panic!("unexpected replay: {other:?}"),
             }
         }
-        assert_eq!(replayed.len(), RESUME_QUEUE_CAP);
-        assert_eq!(replayed[0], "3", "the three oldest must have been dropped");
-        assert_eq!(
-            replayed[RESUME_QUEUE_CAP - 1],
-            (RESUME_QUEUE_CAP + 2).to_string()
-        );
+        assert_eq!(replayed.len(), 5_000);
+        assert_eq!(replayed[0], "0");
+        assert_eq!(replayed[4_999], "4999");
         assert!(
             dead_rx.try_recv().is_err(),
             "nothing reaches the dead socket"
         );
     }
 
-    // A paused session drops player updates instead of queueing them, so they cannot crowd real
-    // events out of the capped replay.
+    // A paused session queues player updates like upstream instead of dropping
+    // them: the replay carries the whole backlog, then fresh state follows.
     #[test]
-    fn paused_session_drops_player_updates_but_keeps_events() {
+    fn paused_session_queues_player_updates_with_events() {
         let (dead, _dead_rx) = mpsc::unbounded_channel();
         let context = context(dead);
         context.pause();
@@ -375,12 +340,13 @@ mod tests {
         context.resume_with(fresh);
 
         match fresh_rx.try_recv() {
-            Ok(Message::Ready { session_id, .. }) => assert_eq!(session_id, "kept"),
-            other => panic!("expected the queued event to be replayed, got {other:?}"),
+            Ok(Message::PlayerUpdate { guild_id, .. }) => assert_eq!(guild_id, "1"),
+            other => panic!("expected the queued update first, got {other:?}"),
         }
-        assert!(
-            fresh_rx.try_recv().is_err(),
-            "the stale player update must not be replayed"
-        );
+        match fresh_rx.try_recv() {
+            Ok(Message::Ready { session_id, .. }) => assert_eq!(session_id, "kept"),
+            other => panic!("expected the queued event second, got {other:?}"),
+        }
+        assert!(fresh_rx.try_recv().is_err(), "nothing else was queued");
     }
 }

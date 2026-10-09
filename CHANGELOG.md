@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Session resume matches upstream: no timeout clamp, unbounded event replay
+
+- `PATCH /v4/sessions/{sessionId}` stores `timeout` as-is (seconds, like
+  upstream) instead of clamping to 3600 s. A client sending `360000` parks its
+  session for that long on both servers now; negative values expire at once.
+- A paused session queues every outbound message with no cap and replays the
+  whole backlog on resume, like upstream — previously the oldest events past
+  4096 were dropped and player updates were skipped, losing `trackStart` /
+  `trackEnd` on long gaps exactly when the client needed them to catch up.
+  Parked sessions pin their players and queued events until the timeout, same
+  trade-off as upstream; operators control it via the timeout they send.
+
 ### Behavior change: voice PATCH no longer blocks on the Discord handshake
 
 `PATCH /v4/sessions/{sessionId}/players/{guildId}` with a `voice` object now
