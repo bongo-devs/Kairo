@@ -46,6 +46,8 @@ pub struct LavalinkServerConfig {
     pub http_config: HttpConfig,
     /// Outbound HTTP timeouts, `lavalink.server.timeouts.*`.
     pub timeouts: TimeoutsConfig,
+    /// Discord voice handshake throttling, `lavalink.server.voice.*`.
+    pub voice: VoiceConfig,
 }
 
 impl Default for LavalinkServerConfig {
@@ -65,6 +67,7 @@ impl Default for LavalinkServerConfig {
             ratelimit: RatelimitConfig::default(),
             http_config: HttpConfig::default(),
             timeouts: TimeoutsConfig::default(),
+            voice: VoiceConfig::default(),
         }
     }
 }
@@ -217,6 +220,53 @@ impl TimeoutsConfig {
     pub fn connect_timeout(&self) -> Option<std::time::Duration> {
         (self.connect_timeout_ms > 0)
             .then(|| std::time::Duration::from_millis(self.connect_timeout_ms))
+    }
+}
+
+/// `lavalink.server.voice.*`, Discord voice handshake throttling.
+///
+/// A large bot reconnecting 1000+ guilds at once would otherwise open that many
+/// simultaneous TLS + UDP handshakes. Every value here has a documented default;
+/// there are no other tuning constants for this path.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct VoiceConfig {
+    /// Max concurrent gateway + UDP handshakes. Past this, background connects
+    /// park on the gate (no worker, almost no memory) until a slot frees.
+    pub max_concurrent_handshakes: usize,
+    /// Queue wait that triggers a warn log on acquire. Background waits are
+    /// unbounded by design (a parked wait holds no worker); this is the warn
+    /// threshold in milliseconds, not a failure timeout.
+    pub queue_warn_ms: u64,
+    /// Outer bound on one handshake. The voice crate aborts its inner exchange
+    /// after 30 s; this releases the gate permit sooner on a hung handshake.
+    pub handshake_timeout_ms: u64,
+    /// Connect in the background and answer PATCH immediately (`true`), or block
+    /// the PATCH on the handshake as Lavalink historically does (`false`, with
+    /// the pre-change failure mapping: handshake errors return `500`).
+    pub background_connect: bool,
+}
+
+impl Default for VoiceConfig {
+    fn default() -> Self {
+        Self {
+            max_concurrent_handshakes: 32,
+            queue_warn_ms: 15_000,
+            handshake_timeout_ms: 10_000,
+            background_connect: false,
+        }
+    }
+}
+
+impl VoiceConfig {
+    /// The handshake timeout as a [`Duration`](std::time::Duration).
+    pub fn handshake_timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(self.handshake_timeout_ms.max(1))
+    }
+
+    /// The queue-warn interval as a [`Duration`](std::time::Duration).
+    pub fn queue_warn(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(self.queue_warn_ms.max(1_000))
     }
 }
 

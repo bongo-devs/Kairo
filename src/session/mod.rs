@@ -5,6 +5,7 @@ pub mod loss_counter;
 pub mod lyrics;
 pub mod manager;
 pub mod player;
+pub mod voice_gate;
 
 pub use context::SocketContext;
 pub use loss_counter::AudioLossCounter;

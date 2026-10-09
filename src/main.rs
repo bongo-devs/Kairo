@@ -20,11 +20,18 @@ use tower_service::Service;
 use kairo::node::AppState;
 use kairo::CONFIG;
 
-#[tokio::main(flavor = "multi_thread")]
-async fn main() -> ExitCode {
+fn main() -> ExitCode {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .thread_name("kairo-rt")
+        .build()
+        .expect("failed to build tokio runtime");
+    runtime.block_on(run())
+}
+
+async fn run() -> ExitCode {
     disable_thp();
 
-    // The only way this fails is a provider already being installed, which is fine.
     let _ = rustls::crypto::ring::default_provider().install_default();
 
     LazyLock::force(&CONFIG);
@@ -33,6 +40,8 @@ async fn main() -> ExitCode {
 
     // The guard flushes what the file sink buffered when dropped, so it is held for all of `main`.
     let _logging = kairo::utils::init(&CONFIG.logging);
+
+    log_fd_limit();
 
     // Fire and forget: it logs an upgrade notice if one exists and stays out of the way otherwise.
     tokio::spawn(kairo::utils::update::check(&CONFIG.logging));
@@ -96,6 +105,30 @@ fn disable_thp() {
 #[cfg(not(target_os = "linux"))]
 fn disable_thp() {}
 
+// Each voice connection holds a gateway TCP socket plus a UDP socket, so a 1000-guild fleet
+// needs thousands of descriptors before outbound HTTP pools are counted. Warn when the
+// process limit is too low to survive a large-bot reconnect storm.
+#[cfg(unix)]
+fn log_fd_limit() {
+    let mut lim = libc::rlimit {
+        rlim_cur: 0,
+        rlim_max: 0,
+    };
+    if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut lim) } != 0 {
+        return;
+    }
+    tracing::info!(limit = lim.rlim_cur, "file descriptor limit");
+    if lim.rlim_cur < 16384 {
+        tracing::warn!(
+            limit = lim.rlim_cur,
+            "file descriptor limit is low for large fleets; raise it (docker compose ulimits nofile 65536)"
+        );
+    }
+}
+
+#[cfg(not(unix))]
+fn log_fd_limit() {}
+
 // Accept connections until `shutdown` resolves, then let the open ones finish.
 //
 // Hand-rolled rather than `axum::serve` because each connection needs its peer address attached for
@@ -121,8 +154,8 @@ async fn serve(
                 Ok(conn) => conn,
                 // Usually the file descriptor limit. Pause briefly rather than spin on it.
                 Err(err) => {
-                    tracing::debug!("failed to accept a connection: {err}");
-                    tokio::time::sleep(Duration::from_millis(50)).await;
+                    tracing::warn!("failed to accept a connection: {err}");
+                    tokio::time::sleep(Duration::from_millis(100)).await;
                     continue;
                 }
             },

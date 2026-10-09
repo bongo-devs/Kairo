@@ -13,7 +13,7 @@ pub use crossfade::{CrossfadeConfig, CrossfadeCurve};
 pub use filters::FiltersToggleConfig;
 pub use lavalink::{
     HttpConfig, LavalinkConfig, LavalinkServerConfig, RatelimitConfig, RatelimitStrategy,
-    ResamplingQuality,
+    ResamplingQuality, VoiceConfig,
 };
 pub use logging::{LogFileConfig, LogFormat, LogRotation, LoggingConfig, RequestLoggingConfig};
 pub use lyrics::LyricsServerConfig;

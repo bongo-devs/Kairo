@@ -46,6 +46,10 @@ impl RestError {
         Self::new(StatusCode::INTERNAL_SERVER_ERROR, message)
     }
 
+    pub fn service_unavailable(message: impl Into<String>) -> Self {
+        Self::new(StatusCode::SERVICE_UNAVAILABLE, message)
+    }
+
     pub fn with_trace(mut self, trace: impl Into<String>) -> Self {
         self.trace = Some(trace.into());
         self

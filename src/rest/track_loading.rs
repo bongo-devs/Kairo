@@ -59,9 +59,18 @@ pub async fn load_tracks(
         }
         player::LoadResult::NoMatches => LoadResult::Empty,
         player::LoadResult::LoadFailed(err) => {
+            // Log the full friendly cause chain, not just the user-facing message.
+            // `err.message` alone ("HTTP request failed.") hides whether this was a
+            // connect timeout, DNS failure, EMFILE, pool exhaustion or TLS error.
+            // The underlying io kind is only available where the reqwest::Error is
+            // still in scope (crates/player http.rs); here we log everything we kept.
             tracing::error!(
-                "Failed to load track for identifier {identifier}: {}",
-                err.message
+                identifier = %identifier,
+                severity = %err.severity,
+                message = %err.message,
+                cause = err.cause.as_deref().unwrap_or("none"),
+                cause_class = crate::rest::error_detail::classify(&err),
+                "Failed to load track"
             );
             LoadResult::Error(Exception::from_friendly(&err))
         }

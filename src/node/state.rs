@@ -103,7 +103,10 @@ impl AppState {
         crate::session::player::set_update_interval(
             state.inner.config.lavalink.server.player_update_interval,
         );
+        crate::session::voice_gate::configure(&state.inner.config.lavalink.server.voice);
         state.spawn_player_cleanup_task();
+        state.spawn_resource_monitor_task();
+        crate::node::runtime_metrics::spawn_runtime_metrics_task();
         spawn_heap_reclaim_task();
         state
     }
@@ -206,6 +209,39 @@ impl AppState {
                 }
             },
         );
+    }
+
+    // Log file descriptors plus voice-gate state every 30 s.
+    //
+    // This is the gauge that decides the FD-exhaustion theory: if `fd_count` sits
+    // far below `fd_limit` while HTTP still fails, descriptors were never the cause.
+    // The `readdir` runs on the blocking pool so the tick itself never blocks a worker.
+    fn spawn_resource_monitor_task(&self) {
+        let state = self.clone();
+        TASKS.add("resource_monitor", Duration::from_secs(30), move || {
+            let state = state.clone();
+            async move {
+                let fd_count = tokio::task::spawn_blocking(crate::node::stats::fd_count)
+                    .await
+                    .ok()
+                    .flatten();
+                let gate = crate::session::voice_gate::metrics();
+                tracing::info!(
+                    fd_count = ?fd_count,
+                    fd_limit = ?crate::node::stats::fd_limit(),
+                    players = state.sockets().total_players(),
+                    playing = state.sockets().total_playing_players(),
+                    gate_in_flight = gate.in_flight,
+                    gate_waiting = gate.waiting,
+                    gate_available = gate.available,
+                    gate_acquired = gate.total_acquired,
+                    gate_timed_out = gate.total_timed_out,
+                    gate_avg_wait_ms = gate.avg_wait_ms,
+                    gate_avg_handshake_ms = gate.avg_handshake_ms,
+                    "resource monitor"
+                );
+            }
+        });
     }
 }
 
