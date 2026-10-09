@@ -9,6 +9,12 @@ services:
     restart: unless-stopped
     ports:
       - "2333:2333"
+    # Deliberately no `ulimits.nofile` pin: Docker's default is usually 1048576
+    # (524288 measured on this host) and any pinned value risks *lowering* the
+    # limit on hosts already above it. A 1000-guild fleet needs a few thousand
+    # descriptors (TCP+UDP per voice connection plus HTTP pools). Verify with
+    # `docker inspect kairo --format '{{.HostConfig.Ulimits}}'` and only pin a
+    # value at or above what is already there.
     volumes:
       - ./application.yml:/app/application.yml:ro
       - ./logs:/app/logs
