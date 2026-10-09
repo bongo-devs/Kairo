@@ -5,6 +5,7 @@
 //! [`error_body_middleware`](error::error_body_middleware).
 
 pub mod error;
+pub mod error_detail;
 pub mod info;
 pub mod lyrics;
 pub mod metrics;

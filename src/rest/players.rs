@@ -311,7 +311,17 @@ async fn resolve_track(
             player::LoadResult::NoMatches => {
                 Err(RestError::bad_request("No matches found for identifier"))
             }
-            player::LoadResult::LoadFailed(err) => Err(RestError::from_friendly(&err)),
+            player::LoadResult::LoadFailed(err) => {
+                tracing::warn!(
+                    identifier = %identifier,
+                    severity = %err.severity,
+                    message = %err.message,
+                    cause = err.cause.as_deref().unwrap_or("none"),
+                    cause_class = crate::rest::error_detail::classify(&err),
+                    "PATCH track resolve failed"
+                );
+                Err(RestError::from_friendly(&err))
+            }
         };
     }
 
