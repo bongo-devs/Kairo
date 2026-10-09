@@ -833,6 +833,7 @@ mod transition;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::sync::Barrier;
 
     // `tokio::time::interval` panics on a zero period, so a `playerUpdateInterval: 0` in the config
     // has to be clamped before it reaches the update task.
@@ -843,5 +844,197 @@ mod tests {
         // A `OnceLock` keeps the first value, so a second call must be a no-op rather than a panic.
         set_update_interval(9);
         assert_eq!(UPDATE_INTERVAL_SECS.get().copied(), Some(1));
+    }
+
+    fn test_voice(token: &str) -> VoiceState {
+        VoiceState {
+            token: token.to_string(),
+            endpoint: "e".to_string(),
+            session_id: "s".to_string(),
+            channel_id: Some("c".to_string()),
+        }
+    }
+
+    // Needs a runtime: `LavalinkPlayer::new` captures `Handle::current`.
+    async fn test_player() -> Arc<LavalinkPlayer> {
+        let manager = player::AudioPlayerManager::new();
+        let (sender, _rx) = tokio::sync::mpsc::unbounded_channel();
+        let context = SocketContext::new(
+            "test-session".to_string(),
+            1,
+            manager.clone(),
+            None,
+            None,
+            sender,
+        );
+        let engine = manager.create_player();
+        LavalinkPlayer::new(7, 1, engine, None, None, &context)
+    }
+
+    fn boom() -> Result<VoiceConnection, RestError> {
+        Err(RestError::internal("boom"))
+    }
+
+    #[tokio::test]
+    async fn duplicate_claim_for_same_target_returns_false() {
+        let player = test_player().await;
+        let voice = test_voice("a");
+        assert!(player.try_claim_voice(&voice));
+        // Same target while in flight: duplicate, skip the gate.
+        assert!(!player.try_claim_voice(&voice));
+        // After release a retry with the same target claims anew: a new handshake runs.
+        player.clear_voice_claim(&voice);
+        assert!(player.try_claim_voice(&voice));
+        player.clear_voice_claim(&voice);
+    }
+
+    #[tokio::test]
+    async fn different_target_overwrites_and_release_keeps_newer() {
+        let player = test_player().await;
+        let old = test_voice("a");
+        let new = test_voice("b");
+        assert!(player.try_claim_voice(&old));
+        assert!(player.try_claim_voice(&new));
+        assert!(player.claim_is(&new));
+        // Releasing the stale target must not clear the newer claim.
+        player.clear_voice_claim(&old);
+        assert!(player.claim_is(&new));
+        player.clear_voice_claim(&new);
+    }
+
+    #[tokio::test]
+    async fn commit_allowed_matrix() {
+        let player = test_player().await;
+        let voice = test_voice("a");
+        let other = test_voice("b");
+        // Fresh guild, claim mine: allowed.
+        assert!(player.try_claim_voice(&voice));
+        assert!(player.commit_allowed(&voice));
+        // Claim moved on: stale, not allowed.
+        assert!(player.try_claim_voice(&other));
+        assert!(!player.commit_allowed(&voice));
+        assert!(player.commit_allowed(&other));
+        player.clear_voice_claim(&other);
+    }
+
+    #[tokio::test]
+    async fn claim_guard_clears_on_drop_and_survives_panic() {
+        let player = test_player().await;
+        let voice = test_voice("a");
+        assert!(player.try_claim_voice(&voice));
+        {
+            let _guard = VoiceClaimGuard::new(Arc::clone(&player), voice.clone());
+        }
+        assert!(!player.claim_is(&voice));
+        // A panic unwind drops the guard the same way.
+        assert!(player.try_claim_voice(&voice));
+        let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = VoiceClaimGuard::new(Arc::clone(&player), voice.clone());
+            panic!("boom");
+        }));
+        assert!(caught.is_err());
+        assert!(!player.claim_is(&voice));
+    }
+
+    #[tokio::test]
+    async fn background_connect_clears_claim_on_handshake_error() {
+        let player = test_player().await;
+        let voice = test_voice("a");
+        assert!(player.try_claim_voice(&voice));
+        let guard = VoiceClaimGuard::new(Arc::clone(&player), voice.clone());
+        LavalinkPlayer::background_connect(guard, Duration::from_secs(5), async { boom() }).await;
+        assert!(!player.claim_is(&voice));
+        // Retry with the same target claims anew.
+        assert!(player.try_claim_voice(&voice));
+        player.clear_voice_claim(&voice);
+    }
+
+    #[tokio::test]
+    async fn background_connect_clears_claim_on_timeout() {
+        let player = test_player().await;
+        let voice = test_voice("a");
+        assert!(player.try_claim_voice(&voice));
+        let guard = VoiceClaimGuard::new(Arc::clone(&player), voice.clone());
+        LavalinkPlayer::background_connect(
+            guard,
+            Duration::from_millis(50),
+            std::future::pending(),
+        )
+        .await;
+        assert!(!player.claim_is(&voice));
+    }
+
+    #[tokio::test]
+    async fn background_connect_clears_claim_on_abort() {
+        let player = test_player().await;
+        let voice = test_voice("a");
+        assert!(player.try_claim_voice(&voice));
+        // The guard moves into the task future, so even an abort before the
+        // first poll drops it and releases the claim.
+        let guard = VoiceClaimGuard::new(Arc::clone(&player), voice.clone());
+        let handle = tokio::spawn(LavalinkPlayer::background_connect(
+            guard,
+            Duration::from_secs(30),
+            async {
+                tokio::time::sleep(Duration::from_secs(60)).await;
+                boom()
+            },
+        ));
+        handle.abort();
+        let _ = handle.await;
+        assert!(!player.claim_is(&voice));
+    }
+
+    // Ten racers, one barrier, gated stub: exactly one handshake may start for
+    // the same target. The stub blocks until released so the winner is still in
+    // flight while the losers attempt their claims.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn duplicate_patch_racers_run_one_handshake() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use tokio::sync::Notify;
+        static STARTS: AtomicUsize = AtomicUsize::new(0);
+
+        let player = test_player().await;
+        let voice = test_voice("a");
+        let barrier = Arc::new(Barrier::new(10));
+        let release = Arc::new(Notify::new());
+        let tasks: Vec<_> = (0..10)
+            .map(|_| {
+                let player = Arc::clone(&player);
+                let barrier = Arc::clone(&barrier);
+                let release = Arc::clone(&release);
+                let voice = voice.clone();
+                tokio::spawn(async move {
+                    barrier.wait().await;
+                    if player.try_claim_voice(&voice) {
+                        let guard = VoiceClaimGuard::new(Arc::clone(&player), voice.clone());
+                        let stub = {
+                            let release = Arc::clone(&release);
+                            async move {
+                                STARTS.fetch_add(1, Ordering::AcqRel);
+                                release.notified().await;
+                                boom()
+                            }
+                        };
+                        LavalinkPlayer::background_connect(guard, Duration::from_secs(30), stub)
+                            .await;
+                    }
+                })
+            })
+            .collect();
+        // Wait for the single winner to start, let the losers attempt, then release.
+        for _ in 0..500 {
+            if STARTS.load(Ordering::Relaxed) == 1 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        release.notify_waiters();
+        for task in tasks {
+            task.await.unwrap();
+        }
+        assert_eq!(STARTS.load(Ordering::Relaxed), 1);
+        assert!(!player.claim_is(&voice));
     }
 }
