@@ -71,7 +71,10 @@ fn build_filter(cfg: &LoggingConfig) -> EnvFilter {
 }
 
 /// `(target, level)` pairs silenced unless the user scopes them.
-const DEFAULT_SUPPRESSIONS: &[(&str, &str)] = &[("symphonia_format_isomp4::demuxer", "error")];
+const DEFAULT_SUPPRESSIONS: &[(&str, &str)] = &[
+    ("symphonia_format_isomp4::demuxer", "error"),
+    ("davey::session", "error"),
+];
 
 fn fmt_layer<W>(
     cfg: &LoggingConfig,
