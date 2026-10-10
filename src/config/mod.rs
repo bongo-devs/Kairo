@@ -1,4 +1,4 @@
-//! Configuration parsed from `application.yml` at startup.
+//! Configuration parsed from `config.toml` at startup.
 
 mod crossfade;
 mod filters;
@@ -24,7 +24,30 @@ use serde::Deserialize;
 
 use player::AudioConfiguration;
 
-/// The whole of `application.yml`. Every block is optional and falls back to its own defaults.
+const DEFAULT_CONFIG: &str = "config.toml";
+// Top-level keys the config recognises; anything else is a likely typo. Kept in step with the
+// fields of `Config` below.
+const KNOWN_SECTIONS: &[&str] = &[
+    "server",
+    "lavalink",
+    "logging",
+    "sources",
+    "crossfade",
+    "lyrics",
+    "metrics",
+];
+
+// Warn, before logging is up, about unrecognised top-level sections. Serde drops unknown keys
+// rather than failing, so this is the only hint a typo'd section was ignored.
+fn warn_unknown_sections<'a>(keys: impl Iterator<Item = &'a str>) {
+    for key in keys {
+        if !KNOWN_SECTIONS.contains(&key) {
+            eprintln!("warning: unknown config section '{key}' ignored");
+        }
+    }
+}
+
+/// The whole config file. Every block is optional and falls back to its own defaults.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct Config {
@@ -45,20 +68,25 @@ pub struct Config {
 }
 
 impl Config {
-    /// Read the file named by the first argument, then `KAIRO_CONFIG`, then `application.yml`.
+    /// Read the file named by the first argument, then `KAIRO_CONFIG`, then `config.toml`.
     ///
     /// Panics if the file cannot be read or parsed, since there is nothing to serve without it.
     pub fn new() -> Self {
         let path = std::env::args()
             .nth(1)
             .or_else(|| std::env::var("KAIRO_CONFIG").ok())
-            .unwrap_or_else(|| "application.yml".to_string());
-
+            .unwrap_or_else(|| DEFAULT_CONFIG.to_string());
         let content = std::fs::read_to_string(&path)
             .unwrap_or_else(|e| panic!("Failed to read config '{}': {}", path, e));
-
-        serde_yaml::from_str::<Config>(&content)
+        Self::from_toml(&content)
             .unwrap_or_else(|e| panic!("Failed to parse config '{}': {}", path, e))
+    }
+
+    fn from_toml(content: &str) -> Result<Self, toml::de::Error> {
+        if let Ok(table) = toml::from_str::<toml::Table>(content) {
+            warn_unknown_sections(table.keys().map(String::as_str));
+        }
+        toml::from_str(content)
     }
 
     /// Build the engine-wide [`AudioConfiguration`] from these settings.
@@ -72,5 +100,26 @@ impl Config {
         config.set_opus_encoding_quality(server.opus_encoding_quality);
         config.set_opus_bitrate(server.opus_bitrate);
         config
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Config;
+
+    #[test]
+    fn example_toml_parses() {
+        let cfg = Config::from_toml(include_str!("../../config.example.toml"))
+            .expect("config.example.toml must parse");
+        assert_eq!(cfg.server.port, 2333);
+        assert_eq!(cfg.lavalink.server.password, "youshallnotpass");
+        assert_eq!(cfg.lavalink.server.opus_bitrate, 96_000);
+    }
+
+    #[test]
+    fn minimal_toml_uses_defaults() {
+        let cfg = Config::from_toml("").expect("an empty config is all defaults");
+        assert_eq!(cfg.server.port, 2333);
+        assert_eq!(cfg.lavalink.server.player_update_interval, 5);
     }
 }

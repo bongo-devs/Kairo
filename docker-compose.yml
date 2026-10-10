@@ -14,10 +14,10 @@ services:
         soft: 65536
         hard: 65536
     volumes:
-      - ./application.yml:/app/application.yml:ro
+      - ./config.toml:/app/config.toml:ro
       - ./logs:/app/logs
     environment:
       - RUST_LOG=info
-      - KAIRO_CONFIG=/app/application.yml
+      - KAIRO_CONFIG=/app/config.toml
       # Commit arena pages on demand rather than up front, worth about 12 MB at idle.
       - MIMALLOC_ARENA_EAGER_COMMIT=0

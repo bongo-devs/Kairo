@@ -2,7 +2,7 @@
 //!
 //! The crate is the node's control plane: [`rest`] serves the HTTP API and the WebSocket, [`session`]
 //! owns the players behind it, [`node`] holds the state they share, and [`config`] reads the
-//! `application.yml` all three are configured from. Audio decoding and voice transport live in the
+//! `config.toml` all three are configured from. Audio decoding and voice transport live in the
 //! `player` and `voice` crates.
 
 pub mod config;

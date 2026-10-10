@@ -7,7 +7,7 @@
 
 # Local runtime state.
 /logs
-application.yml
+config.toml
 
 # Editor and tooling.
 .vscode/
