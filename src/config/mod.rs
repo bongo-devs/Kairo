@@ -102,3 +102,24 @@ impl Config {
         config
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Config;
+
+    #[test]
+    fn example_toml_parses() {
+        let cfg = Config::from_toml(include_str!("../../config.example.toml"))
+            .expect("config.example.toml must parse");
+        assert_eq!(cfg.server.port, 2333);
+        assert_eq!(cfg.lavalink.server.password, "youshallnotpass");
+        assert_eq!(cfg.lavalink.server.opus_bitrate, 96_000);
+    }
+
+    #[test]
+    fn minimal_toml_uses_defaults() {
+        let cfg = Config::from_toml("").expect("an empty config is all defaults");
+        assert_eq!(cfg.server.port, 2333);
+        assert_eq!(cfg.lavalink.server.player_update_interval, 5);
+    }
+}
