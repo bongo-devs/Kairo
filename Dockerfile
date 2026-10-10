@@ -24,7 +24,7 @@ FROM gcr.io/distroless/cc-debian12:nonroot AS runtime
 WORKDIR /app
 COPY --from=builder --chown=nonroot:nonroot /build/target/release/kairo /app/kairo
 
-ENV KAIRO_CONFIG=/app/application.yml \
+ENV KAIRO_CONFIG=/app/config.toml \
     RUST_LOG=info \
     MIMALLOC_ARENA_EAGER_COMMIT=0
 
@@ -37,7 +37,7 @@ WORKDIR /app
 ARG TARGETARCH
 COPY bin/linux/${TARGETARCH}/kairo /app/kairo
 
-ENV KAIRO_CONFIG=/app/application.yml \
+ENV KAIRO_CONFIG=/app/config.toml \
     RUST_LOG=info \
     MIMALLOC_ARENA_EAGER_COMMIT=0
 

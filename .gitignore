@@ -1,5 +1,5 @@
 /target
-application.yml
+config.toml
 logs/
 crates/
 extra/

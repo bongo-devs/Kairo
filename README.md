@@ -23,11 +23,11 @@ wanted to learn, experiment, and make something of our own.
 Docker is the supported way to run it.
 
 ```sh
-curl -O https://raw.githubusercontent.com/bongo-devs/Kairo/main/application.yml.example
-mv application.yml.example application.yml
+curl -O https://raw.githubusercontent.com/bongo-devs/Kairo/main/config.example.toml
+mv config.example.toml config.toml
 
 docker run -d --name kairo -p 2333:2333 \
-  -v "$PWD/application.yml:/app/application.yml:ro" \
+  -v "$PWD/config.toml:/app/config.toml:ro" \
   -v "$PWD/logs:/app/logs" \
   ghcr.io/bongo-devs/kairo:latest
 ```
@@ -35,16 +35,16 @@ docker run -d --name kairo -p 2333:2333 \
 Or, from a clone of this repository:
 
 ```sh
-cp application.yml.example application.yml
+cp config.example.toml config.toml
 docker compose up -d
 ```
 
-The node serves port 2333 and reads `/app/application.yml`. Set `KAIRO_CONFIG` to read it from
+The node serves port 2333 and reads `/app/config.toml`. Set `KAIRO_CONFIG` to read it from
 somewhere else.
 
 ## Configuration
 
-Every key is documented inline in [`application.yml.example`](application.yml.example). The blocks:
+Every key is documented inline in [`config.example.toml`](config.example.toml). The blocks:
 
 - `server`, `lavalink.server`: the listener, the client password, the frame buffer, the filters.
 - `sources`: which platforms are enabled, and their limits and credentials. A source that only
