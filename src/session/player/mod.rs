@@ -956,13 +956,13 @@ mod tests {
 
     async fn test_player_with_channel() -> (
         Arc<LavalinkPlayer>,
-        tokio::sync::mpsc::UnboundedReceiver<Message>,
+        tokio::sync::mpsc::Receiver<Message>,
         // Kept alive: the player holds only a `Weak` context, and dropping this
         // would close the channel the failure event is asserted on.
         Arc<SocketContext>,
     ) {
         let manager = player::AudioPlayerManager::new();
-        let (sender, rx) = tokio::sync::mpsc::unbounded_channel();
+        let (sender, rx) = tokio::sync::mpsc::channel(256);
         let context = SocketContext::new(
             "test-session".to_string(),
             1,

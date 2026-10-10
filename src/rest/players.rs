@@ -407,7 +407,7 @@ mod tests {
 
     async fn patched_state(
         background_connect: bool,
-    ) -> (AppState, tokio::sync::mpsc::UnboundedReceiver<Message>) {
+    ) -> (AppState, tokio::sync::mpsc::Receiver<Message>) {
         let mut config = Config::default();
         config.lavalink.server.voice.background_connect = background_connect;
         // Keep the process-global update interval deterministic: the unit test
@@ -415,7 +415,7 @@ mod tests {
         // clamped 1, and test order within one binary is undefined.
         config.lavalink.server.player_update_interval = 0;
         let state = AppState::new(config);
-        let (sender, rx) = tokio::sync::mpsc::unbounded_channel();
+        let (sender, rx) = tokio::sync::mpsc::channel(256);
         let context = SocketContext::new(
             SESSION.to_string(),
             1,
