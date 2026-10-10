@@ -20,21 +20,18 @@ wanted to learn, experiment, and make something of our own.
 
 ## Running
 
-Docker is the supported way to run it.
+Docker Compose is the supported way to run it. From a clone of this repository:
+
+```sh
+cp config.example.toml config.toml
+docker compose up -d
+```
+
+Or without cloning, grab the config and the compose file first:
 
 ```sh
 curl -O https://raw.githubusercontent.com/bongo-devs/Kairo/main/config.example.toml
-mv config.example.toml config.toml
-
-docker run -d --name kairo -p 2333:2333 \
-  -v "$PWD/config.toml:/app/config.toml:ro" \
-  -v "$PWD/logs:/app/logs" \
-  ghcr.io/bongo-devs/kairo:latest
-```
-
-Or, from a clone of this repository:
-
-```sh
+curl -O https://raw.githubusercontent.com/bongo-devs/Kairo/main/docker-compose.yml
 cp config.example.toml config.toml
 docker compose up -d
 ```
