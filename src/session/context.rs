@@ -6,7 +6,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::AbortHandle;
@@ -17,6 +17,12 @@ use player::CrossfadeOptions;
 
 use crate::protocol::message::Message;
 use crate::session::player::LavalinkPlayer;
+
+// Lock a session mutex, recovering from poison instead of propagating the panic. One player thread
+// panicking while holding a lock must not take the whole session's event delivery down with it.
+fn locked<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
+}
 
 // Where outbound messages currently go.
 enum Outbound {
@@ -91,7 +97,7 @@ impl SocketContext {
 
     /// Send a message to the client, or queue it while the session is paused.
     pub fn send_message(&self, message: Message) {
-        let mut outbound = self.outbound.lock().unwrap();
+        let mut outbound = locked(&self.outbound);
         match &mut *outbound {
             Outbound::Live(sender) => {
                 // A send error means the write task is gone; the socket close handler will follow.
@@ -105,7 +111,7 @@ impl SocketContext {
 
     /// Get the player for `guild_id`, creating it on the first request for that guild.
     pub fn get_or_create_player(self: &Arc<Self>, guild_id: u64) -> Arc<LavalinkPlayer> {
-        let mut players = self.players.lock().unwrap();
+        let mut players = locked(&self.players);
         if let Some(player) = players.get(&guild_id) {
             return Arc::clone(player);
         }
@@ -123,13 +129,13 @@ impl SocketContext {
     }
 
     pub fn get_player(&self, guild_id: u64) -> Option<Arc<LavalinkPlayer>> {
-        self.players.lock().unwrap().get(&guild_id).cloned()
+        locked(&self.players).get(&guild_id).cloned()
     }
 
     /// Remove and destroy the player for `guild_id`. Returns whether one existed.
     pub fn remove_player(&self, guild_id: u64) -> bool {
-        self.sponsorblock.lock().unwrap().remove(&guild_id);
-        let player = self.players.lock().unwrap().remove(&guild_id);
+        locked(&self.sponsorblock).remove(&guild_id);
+        let player = locked(&self.players).remove(&guild_id);
         if let Some(player) = player {
             player.destroy();
             true
@@ -139,11 +145,11 @@ impl SocketContext {
     }
 
     pub fn players(&self) -> Vec<Arc<LavalinkPlayer>> {
-        self.players.lock().unwrap().values().cloned().collect()
+        locked(&self.players).values().cloned().collect()
     }
 
     pub fn player_count(&self) -> usize {
-        self.players.lock().unwrap().len()
+        locked(&self.players).len()
     }
 
     /// The number of players that hold a track and are not paused.
@@ -182,7 +188,7 @@ impl SocketContext {
     /// Pause the session: queue outbound messages until a resume (or timeout).
     pub fn pause(&self) {
         self.session_paused.store(true, Ordering::Release);
-        let mut outbound = self.outbound.lock().unwrap();
+        let mut outbound = locked(&self.outbound);
         *outbound = Outbound::Queued {
             queue: VecDeque::new(),
         };
@@ -190,14 +196,14 @@ impl SocketContext {
 
     /// Arm the resume-expiry timer, cancelling any timer left over from an earlier disconnect.
     pub fn arm_resume_timeout(&self, handle: AbortHandle) {
-        if let Some(previous) = self.resume_timeout_task.lock().unwrap().replace(handle) {
+        if let Some(previous) = locked(&self.resume_timeout_task).replace(handle) {
             previous.abort();
         }
     }
 
     /// Cancel the pending resume-expiry timer.
     pub fn stop_resume_timeout(&self) {
-        if let Some(handle) = self.resume_timeout_task.lock().unwrap().take() {
+        if let Some(handle) = locked(&self.resume_timeout_task).take() {
             handle.abort();
         }
     }
@@ -208,7 +214,7 @@ impl SocketContext {
     /// `sender`, which the client has to see before the replay.
     pub fn resume_with(&self, sender: UnboundedSender<Message>) -> u64 {
         self.stop_resume_timeout();
-        let mut outbound = self.outbound.lock().unwrap();
+        let mut outbound = locked(&self.outbound);
         let queued = match std::mem::replace(&mut *outbound, Outbound::Live(sender.clone())) {
             Outbound::Queued { queue } => queue,
             _ => VecDeque::new(),
@@ -226,14 +232,14 @@ impl SocketContext {
     /// Returns the new connection epoch, which invalidates the previous socket's teardown.
     pub fn attach_sender(&self, sender: UnboundedSender<Message>) -> u64 {
         self.stop_resume_timeout();
-        *self.outbound.lock().unwrap() = Outbound::Live(sender);
+        *locked(&self.outbound) = Outbound::Live(sender);
         self.session_paused.store(false, Ordering::Release);
         self.connection_epoch.fetch_add(1, Ordering::AcqRel) + 1
     }
 
     /// The SponsorBlock categories to skip for a guild.
     pub fn get_sponsorblock_categories(&self, guild_id: u64) -> Option<HashSet<String>> {
-        self.sponsorblock.lock().unwrap().get(&guild_id).cloned()
+        locked(&self.sponsorblock).get(&guild_id).cloned()
     }
 
     pub fn set_sponsorblock_categories(&self, guild_id: u64, categories: HashSet<String>) {
@@ -244,14 +250,14 @@ impl SocketContext {
     }
 
     pub fn remove_sponsorblock_categories(&self, guild_id: u64) {
-        self.sponsorblock.lock().unwrap().remove(&guild_id);
+        locked(&self.sponsorblock).remove(&guild_id);
     }
 
     /// Permanently shut down: destroy all players and stop accepting messages.
     pub fn shutdown(&self) {
         self.stop_resume_timeout();
         crate::node::tasks::TASKS.remove(&crate::node::tasks::session_stats(&self.session_id));
-        *self.outbound.lock().unwrap() = Outbound::Closed;
+        *locked(&self.outbound) = Outbound::Closed;
         let players: Vec<_> = self
             .players
             .lock()
