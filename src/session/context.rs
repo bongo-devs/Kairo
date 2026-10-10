@@ -8,7 +8,8 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::error::TrySendError;
+use tokio::sync::mpsc::Sender;
 use tokio::task::AbortHandle;
 
 use lyrics::LyricsService;
@@ -26,17 +27,27 @@ fn locked<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 
 // Where outbound messages currently go.
 enum Outbound {
-    // A live socket: send straight to the write task.
-    Live(UnboundedSender<Message>),
-    // Resumable: queue until the client reconnects. Unbounded like upstream:
-    // playback continues while parked, so any cap drops real track events on a
-    // long gap exactly when the client needs them to catch up.
+    // A live socket: try_send to the write task. Bounded, so a slow client cannot grow this without
+    // limit; player updates are dropped and events parked when it is full (see `send_message`).
+    Live(Sender<Message>),
+    // Resumable: queue until the client reconnects. Unbounded like upstream: playback continues
+    // while parked, so a cap would drop real track events on a long gap, exactly when the client
+    // needs them to catch up on resume.
     Queued {
         // The pending replay, oldest first.
         queue: VecDeque<Message>,
     },
     // Permanently closed: drop messages.
     Closed,
+}
+
+// Player updates and stats are periodic snapshots, so a fresh one supersedes a dropped one. Every
+// other message (track events, WebSocket-closed, ready) is dropped by neither path.
+fn is_droppable(message: &Message) -> bool {
+    matches!(
+        message,
+        Message::PlayerUpdate { .. } | Message::Stats { .. }
+    )
 }
 
 /// Per-connection state for one session.
@@ -62,6 +73,8 @@ pub struct SocketContext {
     // session the live socket now owns.
     connection_epoch: AtomicU64,
     sponsorblock: Mutex<HashMap<u64, HashSet<String>>>,
+    // Count of player updates / stats dropped under outbound backpressure, for logging and metrics.
+    dropped_updates: AtomicU64,
 }
 
 impl SocketContext {
@@ -71,7 +84,7 @@ impl SocketContext {
         manager: AudioPlayerManager,
         crossfade_defaults: Option<CrossfadeOptions>,
         lyrics_service: Option<Arc<LyricsService>>,
-        sender: UnboundedSender<Message>,
+        sender: Sender<Message>,
     ) -> Arc<Self> {
         Arc::new(Self {
             session_id,
@@ -87,6 +100,7 @@ impl SocketContext {
             resume_timeout_task: Mutex::new(None),
             connection_epoch: AtomicU64::new(0),
             sponsorblock: Mutex::new(HashMap::new()),
+            dropped_updates: AtomicU64::new(0),
         })
     }
 
@@ -96,17 +110,38 @@ impl SocketContext {
     }
 
     /// Send a message to the client, or queue it while the session is paused.
+    ///
+    /// On a live socket this is a non-blocking `try_send`. When the channel is full (a slow or
+    /// half-open client) or already closed (the write task ended), a periodic player update or
+    /// stats is dropped, but a track event is parked into the resume queue instead. Parking also
+    /// drops the live sender, which ends the write task and tears the socket down so the client
+    /// reconnects and replays the queue — never a silent loss.
     pub fn send_message(&self, message: Message) {
         let mut outbound = locked(&self.outbound);
         match &mut *outbound {
-            Outbound::Live(sender) => {
-                // A send error means the write task is gone; the socket close handler will follow.
-                let _ = sender.send(message);
-            }
-
+            Outbound::Live(sender) => match sender.try_send(message) {
+                Ok(()) => {}
+                Err(err) => {
+                    let message = match err {
+                        TrySendError::Full(message) | TrySendError::Closed(message) => message,
+                    };
+                    if is_droppable(&message) {
+                        self.dropped_updates.fetch_add(1, Ordering::Relaxed);
+                        return;
+                    }
+                    let mut queue = VecDeque::new();
+                    queue.push_back(message);
+                    *outbound = Outbound::Queued { queue };
+                }
+            },
             Outbound::Queued { queue } => queue.push_back(message),
             Outbound::Closed => {}
         }
+    }
+
+    /// Player updates and stats dropped so far under outbound backpressure.
+    pub fn dropped_updates(&self) -> u64 {
+        self.dropped_updates.load(Ordering::Relaxed)
     }
 
     /// Get the player for `guild_id`, creating it on the first request for that guild.
@@ -189,9 +224,13 @@ impl SocketContext {
     pub fn pause(&self) {
         self.session_paused.store(true, Ordering::Release);
         let mut outbound = locked(&self.outbound);
-        *outbound = Outbound::Queued {
-            queue: VecDeque::new(),
-        };
+        // Keep any messages already parked: a track event that overflowed the live channel put us
+        // here with the event sitting in the queue, and a fresh empty queue would drop it.
+        if !matches!(&*outbound, Outbound::Queued { .. }) {
+            *outbound = Outbound::Queued {
+                queue: VecDeque::new(),
+            };
+        }
     }
 
     /// Arm the resume-expiry timer, cancelling any timer left over from an earlier disconnect.
@@ -208,29 +247,30 @@ impl SocketContext {
         }
     }
 
-    /// Resume the session onto a fresh outbound channel, replaying any queued messages.
+    /// Resume the session onto a fresh outbound channel.
     ///
-    /// Returns the new connection epoch. The caller is expected to have already pushed `ready` into
-    /// `sender`, which the client has to see before the replay.
-    pub fn resume_with(&self, sender: UnboundedSender<Message>) -> u64 {
+    /// Returns the new connection epoch and the parked messages, oldest first. The caller flushes
+    /// them to the socket ahead of any live message (via the write task's backlog) rather than
+    /// pushing them back through the bounded channel, where a long backlog would overflow and drop.
+    pub fn resume_with(&self, sender: Sender<Message>) -> (u64, Vec<Message>) {
         self.stop_resume_timeout();
         let mut outbound = locked(&self.outbound);
-        let queued = match std::mem::replace(&mut *outbound, Outbound::Live(sender.clone())) {
-            Outbound::Queued { queue } => queue,
-            _ => VecDeque::new(),
+        let backlog = match std::mem::replace(&mut *outbound, Outbound::Live(sender)) {
+            Outbound::Queued { queue } => queue.into(),
+            _ => Vec::new(),
         };
-        for message in queued {
-            let _ = sender.send(message);
-        }
         drop(outbound);
         self.session_paused.store(false, Ordering::Release);
-        self.connection_epoch.fetch_add(1, Ordering::AcqRel) + 1
+        (
+            self.connection_epoch.fetch_add(1, Ordering::AcqRel) + 1,
+            backlog,
+        )
     }
 
     /// Replace the outbound channel for a still-live session (a reconnect without resume state).
     ///
     /// Returns the new connection epoch, which invalidates the previous socket's teardown.
-    pub fn attach_sender(&self, sender: UnboundedSender<Message>) -> u64 {
+    pub fn attach_sender(&self, sender: Sender<Message>) -> u64 {
         self.stop_resume_timeout();
         *locked(&self.outbound) = Outbound::Live(sender);
         self.session_paused.store(false, Ordering::Release);
@@ -258,13 +298,7 @@ impl SocketContext {
         self.stop_resume_timeout();
         crate::node::tasks::TASKS.remove(&crate::node::tasks::session_stats(&self.session_id));
         *locked(&self.outbound) = Outbound::Closed;
-        let players: Vec<_> = self
-            .players
-            .lock()
-            .unwrap()
-            .drain()
-            .map(|(_, p)| p)
-            .collect();
+        let players: Vec<_> = locked(&self.players).drain().map(|(_, p)| p).collect();
         for player in players {
             player.destroy();
         }
@@ -276,7 +310,7 @@ mod tests {
     use super::*;
     use tokio::sync::mpsc;
 
-    fn context(sender: UnboundedSender<Message>) -> Arc<SocketContext> {
+    fn context(sender: Sender<Message>) -> Arc<SocketContext> {
         SocketContext::new(
             "session".to_string(),
             1,
@@ -287,11 +321,34 @@ mod tests {
         )
     }
 
+    fn player_update(guild: &str) -> Message {
+        Message::PlayerUpdate {
+            guild_id: guild.to_string(),
+            state: crate::protocol::player::PlayerState {
+                time: 1,
+                position: 2,
+                connected: true,
+                ping: 3,
+            },
+        }
+    }
+
+    fn track_event(guild: &str) -> Message {
+        // A non-droppable event; its exact kind does not matter here, only that it is not a
+        // player update or stats.
+        Message::event(crate::protocol::message::EmittedEvent::WebSocketClosed {
+            guild_id: guild.to_string(),
+            code: 4006,
+            reason: "test".to_string(),
+            by_remote: true,
+        })
+    }
+
     // A parked session keeps every event like upstream: no cap, no dropping, so a
     // long gap replays in full order instead of losing the oldest track events.
     #[test]
     fn resume_queue_keeps_everything_in_order() {
-        let (dead, mut dead_rx) = mpsc::unbounded_channel();
+        let (dead, _dead_rx) = mpsc::channel(1);
         let context = context(dead);
         context.pause();
         for n in 0..5_000 {
@@ -302,57 +359,71 @@ mod tests {
             });
         }
 
-        let (fresh, mut fresh_rx) = mpsc::unbounded_channel();
-        context.resume_with(fresh);
+        let (fresh, _fresh_rx) = mpsc::channel(1);
+        let (_epoch, backlog) = context.resume_with(fresh);
 
-        let mut replayed = Vec::new();
-        while let Ok(message) = fresh_rx.try_recv() {
-            match message {
-                Message::Ready { session_id, .. } => replayed.push(session_id),
+        let replayed: Vec<_> = backlog
+            .into_iter()
+            .map(|message| match message {
+                Message::Ready { session_id, .. } => session_id,
                 other => panic!("unexpected replay: {other:?}"),
-            }
-        }
+            })
+            .collect();
         assert_eq!(replayed.len(), 5_000);
         assert_eq!(replayed[0], "0");
         assert_eq!(replayed[4_999], "4999");
-        assert!(
-            dead_rx.try_recv().is_err(),
-            "nothing reaches the dead socket"
-        );
     }
 
     // A paused session queues player updates like upstream instead of dropping
-    // them: the replay carries the whole backlog, then fresh state follows.
+    // them: the replay backlog carries the whole thing, oldest first.
     #[test]
     fn paused_session_queues_player_updates_with_events() {
-        let (dead, _dead_rx) = mpsc::unbounded_channel();
+        let (dead, _dead_rx) = mpsc::channel(1);
         let context = context(dead);
         context.pause();
-        context.send_message(Message::PlayerUpdate {
-            guild_id: "1".to_string(),
-            state: crate::protocol::player::PlayerState {
-                time: 1,
-                position: 2,
-                connected: true,
-                ping: 3,
-            },
-        });
+        context.send_message(player_update("1"));
         context.send_message(Message::Ready {
             resumed: false,
             session_id: "kept".to_string(),
         });
 
-        let (fresh, mut fresh_rx) = mpsc::unbounded_channel();
-        context.resume_with(fresh);
+        let (fresh, _fresh_rx) = mpsc::channel(1);
+        let (_epoch, mut backlog) = context.resume_with(fresh);
+        backlog.reverse();
 
-        match fresh_rx.try_recv() {
-            Ok(Message::PlayerUpdate { guild_id, .. }) => assert_eq!(guild_id, "1"),
+        match backlog.pop() {
+            Some(Message::PlayerUpdate { guild_id, .. }) => assert_eq!(guild_id, "1"),
             other => panic!("expected the queued update first, got {other:?}"),
         }
-        match fresh_rx.try_recv() {
-            Ok(Message::Ready { session_id, .. }) => assert_eq!(session_id, "kept"),
+        match backlog.pop() {
+            Some(Message::Ready { session_id, .. }) => assert_eq!(session_id, "kept"),
             other => panic!("expected the queued event second, got {other:?}"),
         }
-        assert!(fresh_rx.try_recv().is_err(), "nothing else was queued");
+        assert!(backlog.is_empty(), "nothing else was queued");
+    }
+
+    // A full live channel drops periodic player updates but never a track event:
+    // the event parks into the resume queue so it survives to the next resume.
+    #[tokio::test]
+    async fn important_events_survive_a_full_queue() {
+        // Capacity 1, never drained, so the channel is full after the first send.
+        let (live, _live_rx) = mpsc::channel(1);
+        let context = context(live);
+        context.send_message(player_update("fill")); // fills the single slot
+
+        context.send_message(player_update("dropped")); // full -> dropped
+        assert_eq!(context.dropped_updates(), 1);
+
+        context.send_message(track_event("kept")); // full -> parked, not dropped
+        assert_eq!(context.dropped_updates(), 1);
+
+        // The parked event is now in the resume queue, and the live sender was dropped so the write
+        // task would see the channel close and tear the socket down.
+        let (fresh, _fresh_rx) = mpsc::channel(1);
+        let (_epoch, backlog) = context.resume_with(fresh);
+        assert!(
+            matches!(backlog.as_slice(), [Message::Event(_)]),
+            "the track event must survive a full queue, got {backlog:?}"
+        );
     }
 }
