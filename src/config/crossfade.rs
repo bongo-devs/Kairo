@@ -100,14 +100,14 @@ mod tests {
 
     #[test]
     fn parses_user_config_block() {
-        let yaml = r#"
-enable: true
-durationMs: 4000
-manualDurationMs: 3500
-curve: linear
-gapless: true
+        let toml = r#"
+enable = true
+durationMs = 4000
+manualDurationMs = 3500
+curve = "linear"
+gapless = true
 "#;
-        let cfg: CrossfadeConfig = serde_yaml::from_str(yaml).unwrap();
+        let cfg: CrossfadeConfig = toml::from_str(toml).unwrap();
         assert!(cfg.enable);
         assert_eq!(cfg.duration_ms, 4000);
         assert_eq!(cfg.manual_duration_ms, 3500);
@@ -119,7 +119,7 @@ gapless: true
 
     #[test]
     fn defaults_are_gapless_not_crossfade() {
-        let cfg: CrossfadeConfig = serde_yaml::from_str("{}").unwrap();
+        let cfg: CrossfadeConfig = toml::from_str("").unwrap();
         assert!(!cfg.enable);
         assert!(cfg.gapless);
         assert_eq!(cfg.duration_ms, 6000);
@@ -131,7 +131,7 @@ gapless: true
 
     #[test]
     fn all_off_yields_no_transition() {
-        let cfg: CrossfadeConfig = serde_yaml::from_str("enable: false\ngapless: false\n").unwrap();
+        let cfg: CrossfadeConfig = toml::from_str("enable = false\ngapless = false\n").unwrap();
         assert!(cfg.to_engine().is_none());
     }
 
@@ -144,8 +144,8 @@ gapless: true
             ("sCurve", EngineCrossfadeCurve::SCurve),
             ("sinusoidal", EngineCrossfadeCurve::Sinusoidal),
         ] {
-            let yaml = format!("enable: true\ncurve: {name}\n");
-            let cfg: CrossfadeConfig = serde_yaml::from_str(&yaml).unwrap();
+            let toml = format!("enable = true\ncurve = \"{name}\"\n");
+            let cfg: CrossfadeConfig = toml::from_str(&toml).unwrap();
             assert_eq!(cfg.to_engine().unwrap().curve, expected);
         }
     }
