@@ -9,14 +9,6 @@ on:
         description: "Specific commit SHA (leave empty for latest)"
         required: false
         default: ""
-  # A tag run can only inherit the default branch's caches, so build here when the lockfile moves.
-  # Without it every release compiles all 399 crates from scratch.
-  push:
-    branches: [main]
-    paths:
-      - Cargo.lock
-      - Cargo.toml
-      - .github/workflows/release.yml
 
 permissions:
   contents: read
