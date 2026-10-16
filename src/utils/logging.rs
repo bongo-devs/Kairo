@@ -74,6 +74,7 @@ fn build_filter(cfg: &LoggingConfig) -> EnvFilter {
 const DEFAULT_SUPPRESSIONS: &[(&str, &str)] = &[
     ("symphonia_format_isomp4::demuxer", "error"),
     ("davey::session", "error"),
+    ("voice::pacer", "error"),
 ];
 
 fn fmt_layer<W>(
