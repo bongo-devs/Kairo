@@ -9,7 +9,7 @@ description = "Standalone Discord audio sending node, written in Rust. Drop-in L
 bytes = "1"
 futures-util = "0.3"
 libc = "0.2"
-mimalloc = "0.1.48"
+mimalloc = "0.1.52"
 perf_monitor = "0.2.1"
 rand = "0.8"
 semver = "1"
@@ -33,7 +33,7 @@ tag = "v0.1.25"
 
 [dependencies.voice]
 git = "https://github.com/bongo-devs/voice"
-tag = "v0.1.3"
+tag = "v0.1.4"
 
 [dependencies.reqwest]
 version = "0.12"
@@ -41,7 +41,7 @@ default-features = false
 features = ["rustls-tls", "json"]
 
 [dependencies.tokio]
-version = "1.52"
+version = "1.53"
 features = ["tracing", "macros", "signal", "rt-multi-thread"]
 
 [dependencies.axum]
@@ -63,7 +63,7 @@ version = "0.1"
 features = ["server-auto", "tokio"]
 
 [dependencies.libmimalloc-sys]
-version = "0.1.44"
+version = "0.1.49"
 features = ["extended"]
 
 [dependencies.rustls]
