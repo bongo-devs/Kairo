@@ -129,6 +129,11 @@ impl SocketContext {
                         self.dropped_updates.fetch_add(1, Ordering::Relaxed);
                         return;
                     }
+                    tracing::warn!(
+                        session = %self.session_id,
+                        dropped_updates = self.dropped_updates(),
+                        "websocket outbound queue full; parking session for resume"
+                    );
                     let mut queue = VecDeque::new();
                     queue.push_back(message);
                     *outbound = Outbound::Queued { queue };

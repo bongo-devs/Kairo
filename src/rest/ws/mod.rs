@@ -92,7 +92,12 @@ async fn handle_socket(
 
     // Couple the halves: whichever ends first aborts the other, so a dead write task tears the
     // session down instead of leaving the read loop spinning while events pile up unread.
-    let write_task = tokio::spawn(sender::write_loop(sink, receiver, backlog));
+    let write_task = tokio::spawn(sender::write_loop(
+        sink,
+        receiver,
+        backlog,
+        context.session_id.clone(),
+    ));
     let read_task = tokio::spawn(receiver::read_loop(stream, context.session_id.clone()));
     let reason = supervise(read_task, write_task).await;
 
