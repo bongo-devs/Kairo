@@ -3626,8 +3626,8 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "voice"
-version = "0.1.7"
-source = "git+https://github.com/bongo-devs/voice?tag=v0.1.7#7a6ad8fcc4b71f97e8ffa21b8606022e545e6594"
+version = "0.1.8"
+source = "git+https://github.com/bongo-devs/voice?tag=v0.1.8#d2d60013116d10f4def26a2315a9ad1035680b02"
 dependencies = [
  "aes-gcm",
  "bytes",
