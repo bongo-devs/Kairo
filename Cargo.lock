@@ -1730,6 +1730,7 @@ checksum = "4050469837a6ff301cd14c1f8f24f88549e6d548f24f64e2148eb0f72cebc51f"
 [[package]]
 name = "lyrics"
 version = "0.2.9"
+source = "git+https://github.com/bongo-devs/lyrics?tag=v0.2.9#6d0ff1688ab48a6872d8fe225deb14ca891c540a"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -2110,6 +2111,7 @@ dependencies = [
 [[package]]
 name = "player"
 version = "0.1.10"
+source = "git+https://github.com/bongo-devs/player?tag=v0.1.10#f64ec671a30edf895bf1fcd17a56f344715940f6"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -2844,6 +2846,7 @@ dependencies = [
 [[package]]
 name = "sources"
 version = "0.1.27"
+source = "git+https://github.com/bongo-devs/sources?tag=v0.1.27#3a64132943d80b1b34785bb787d2814a34a4c4aa"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -3624,6 +3627,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "voice"
 version = "0.1.6"
+source = "git+https://github.com/bongo-devs/voice?tag=v0.1.6#8fff1f6750f15ede1a3684f67d906bf935c2e271"
 dependencies = [
  "aes-gcm",
  "bytes",
