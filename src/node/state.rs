@@ -226,7 +226,7 @@ impl AppState {
                     .ok()
                     .flatten();
                 let gate = crate::session::voice_gate::metrics();
-                tracing::info!(
+                tracing::debug!(
                     fd_count = ?fd_count,
                     fd_limit = ?crate::node::stats::fd_limit(),
                     players = state.sockets().total_players(),

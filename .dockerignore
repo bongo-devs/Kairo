@@ -5,6 +5,9 @@
 # Local clones of the git dependencies. Cargo fetches its own copies.
 /crates
 
+# Local dev-only cargo config (patch/paths overrides pointing at /crates).
+.cargo/
+
 # Local runtime state.
 /logs
 config.toml
