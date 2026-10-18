@@ -162,15 +162,12 @@ impl AppState {
         }
     }
 
-    /// Start this session's `stats` timer, firing immediately and then once a minute.
-    ///
-    /// Per-session rather than one node-wide loop because `frameStats` are per-session, and this way
-    /// the timer is cancelled along with the session it belongs to.
+    /// Start this session's `stats` timer: immediately, then once a minute on a fixed grid.
     pub fn arm_session_stats(&self, context: &Arc<SocketContext>) {
         let state = self.clone();
         // Weak, so a session dropped without `shutdown()` running cannot be kept alive by its timer.
         let weak = Arc::downgrade(context);
-        TASKS.add(
+        TASKS.add_fixed_rate(
             tasks::session_stats(&context.session_id),
             Duration::from_secs(STATS_INTERVAL_SECS),
             move || {

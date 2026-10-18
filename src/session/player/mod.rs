@@ -773,11 +773,16 @@ impl LavalinkPlayer {
         }
     }
 
-    /// Send a player update to the owning context, if it is still alive.
+    /// Send a player update to the owning context, unless the session is parked for resume.
     pub fn send_player_update(&self) {
-        if let Some(context) = self.shared.context.upgrade() {
-            context.send_message(self.player_update_message());
+        let Some(context) = self.shared.context.upgrade() else {
+            return;
+        };
+        // Snapshots taken while parked are stale; the resume handshake sends fresh ones.
+        if context.is_paused() {
+            return;
         }
+        context.send_message(self.player_update_message());
     }
 
     // Arm this player's periodic update timer, phased to now.
@@ -791,7 +796,6 @@ impl LavalinkPlayer {
         let weak = Arc::downgrade(self);
         let task = self.shared.runtime.spawn(async move {
             let mut ticker = tokio::time::interval(interval);
-            ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
             loop {
                 ticker.tick().await;
                 match weak.upgrade() {
@@ -956,13 +960,13 @@ mod tests {
 
     async fn test_player_with_channel() -> (
         Arc<LavalinkPlayer>,
-        tokio::sync::mpsc::Receiver<Message>,
+        tokio::sync::mpsc::UnboundedReceiver<Message>,
         // Kept alive: the player holds only a `Weak` context, and dropping this
         // would close the channel the failure event is asserted on.
         Arc<SocketContext>,
     ) {
         let manager = player::AudioPlayerManager::new();
-        let (sender, rx) = tokio::sync::mpsc::channel(256);
+        let (sender, rx) = tokio::sync::mpsc::unbounded_channel();
         let context = SocketContext::new(
             "test-session".to_string(),
             1,
@@ -1008,6 +1012,20 @@ mod tests {
         player.clear_voice_claim(&old);
         assert!(player.claim_is(&new));
         player.clear_voice_claim(&new);
+    }
+
+    #[tokio::test]
+    async fn player_update_is_skipped_while_parked() {
+        let (player, _rx, context) = test_player_with_channel().await;
+        context.pause();
+        player.send_player_update();
+
+        let (sender, _sender_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (_epoch, backlog) = context.resume_with(sender);
+        assert!(
+            backlog.is_empty(),
+            "a parked session must not queue stale updates, got {backlog:?}"
+        );
     }
 
     #[tokio::test]
