@@ -2,7 +2,6 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/bongo-devs/Kairo/rust.yml?branch=main&label=CI&style=for-the-badge&logo=githubactions)](https://github.com/bongo-devs/Kairo/actions/workflows/rust.yml)
 [![Latest tag](https://img.shields.io/github/v/tag/bongo-devs/Kairo?sort=semver&style=for-the-badge&logo=git)](https://github.com/bongo-devs/Kairo/releases)
-[![Container](https://img.shields.io/badge/GHCR-ghcr.io%2Fbongo--devs%2Fkairo-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/bongo-devs/Kairo/pkgs/container/kairo)
 [![License](https://img.shields.io/github/license/bongo-devs/Kairo?style=for-the-badge)](LICENSE)
 
 Kairo is a Rust-based audio node for Discord bots. It implements the Lavalink v4 REST and WebSocket protocol, so existing Lavalink-compatible clients can connect using the node’s address and password.
@@ -11,7 +10,17 @@ Kairo is a Rust-based audio node for Discord bots. It implements the Lavalink v4
 - Docker image: `ghcr.io/bongo-devs/kairo`
 - [Latest release binaries for Linux, macOS, and Windows](https://github.com/bongo-devs/Kairo/releases/latest)
 
+## Why this exists
+
+Kairo started as a hobby project. We wanted more control over the audio node we use, so we decided to build our own.
+
+We have a lot of respect for Lavalink and the people behind it. The protocol and ecosystem it built gave us a solid foundation to work from. Without Lavalink, Kairo probably wouldn't exist.
+
+Kairo isn't here to replace Lavalink. It's simply our own take on the problem, built because we wanted to learn, experiment, and make something of our own.
+
 ## Run with Docker Compose
+
+This Compose setup uses the published GHCR image; it does not build Kairo from source.
 
 ```sh
 git clone https://github.com/bongo-devs/Kairo.git
@@ -22,7 +31,7 @@ cp config.example.toml config.toml
 Edit `config.toml` before starting the node. In particular, replace the sample password and enable the sources you want. Then run:
 
 ```sh
-docker compose up -d --build
+docker compose pull && docker compose up -d
 ```
 
 Compose exposes port `2333`, mounts `config.toml` read-only, and sets the soft and hard `nofile` limits to `65536`. Keep this limit for a high-concurrency deployment. View container output with `docker compose logs -f`; optional file logging can use the mounted `./logs` directory.
@@ -62,9 +71,9 @@ Most platform sources are disabled by default; the generic HTTP source is enable
 
 The optional [yt-cipher](https://github.com/bongo-devs/yt-cipher) service supports YouTube client paths that need signature resolution or PO tokens. [keys-api](https://github.com/bongo-devs/keys-api) can provide shared credentials for supported sources. Both are configured in `config.toml` and are only needed for those integrations.
 
-## Build and test
+## Build from source
 
-With a stable Rust toolchain and native build tools installed:
+Building from source requires access to the private `bongo-devs/lyrics`, `bongo-devs/player`, and `bongo-devs/sources` repositories referenced by `Cargo.toml`. Without access, Cargo cannot fetch those dependencies, so use the published Docker image or release binaries instead. If you have access and a stable Rust toolchain with native build tools installed:
 
 ```sh
 cargo build --release --locked --bin kairo

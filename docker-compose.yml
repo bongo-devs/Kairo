@@ -1,9 +1,5 @@
 services:
   kairo:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runtime
     image: ghcr.io/bongo-devs/kairo:latest
     container_name: kairo
     restart: unless-stopped
