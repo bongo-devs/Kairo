@@ -1,77 +1,82 @@
-# kairo
+# Kairo
 
-[![Build](https://img.shields.io/github/actions/workflow/status/bongo-devs/Kairo/rust.yml?branch=main&label=build)](https://github.com/bongo-devs/Kairo/actions/workflows/rust.yml)
-[![Container](https://img.shields.io/badge/ghcr.io-kairo-2496ED?logo=docker&logoColor=white)](https://github.com/bongo-devs/Kairo/pkgs/container/kairo)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/bongo-devs/Kairo/rust.yml?branch=main&label=CI&style=for-the-badge&logo=githubactions)](https://github.com/bongo-devs/Kairo/actions/workflows/rust.yml)
+[![Latest tag](https://img.shields.io/github/v/tag/bongo-devs/Kairo?sort=semver&style=for-the-badge&logo=git)](https://github.com/bongo-devs/Kairo/releases)
+[![Container](https://img.shields.io/badge/GHCR-ghcr.io%2Fbongo--devs%2Fkairo-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/bongo-devs/Kairo/pkgs/container/kairo)
+[![License](https://img.shields.io/github/license/bongo-devs/Kairo?style=for-the-badge)](LICENSE)
 
-Standalone Discord audio sending node, written in Rust. Drop-in Lavalink v4 compatible: the same
-REST API, the same WebSocket events, the same encoded track format.
+Kairo is a Rust-based audio node for Discord bots. It implements the Lavalink v4 REST and WebSocket protocol, so existing Lavalink-compatible clients can connect using the node’s address and password.
 
-## Why this exists
+- Audio sources, filters, crossfade, lyrics, and optional Prometheus metrics
+- Docker image: `ghcr.io/bongo-devs/kairo`
+- [Latest release binaries for Linux, macOS, and Windows](https://github.com/bongo-devs/Kairo/releases/latest)
 
-Kairo started as a hobby project. We wanted more control over the audio node we use, so we decided
-to build our own.
-
-We have a lot of respect for Lavalink and the people behind it. The protocol and ecosystem it built
-gave us a solid foundation to work from. Without Lavalink, Kairo probably wouldn't exist.
-
-Kairo isn't here to replace Lavalink. It's simply our own take on the problem, built because we
-wanted to learn, experiment, and make something of our own.
-
-## Running
-
-Docker Compose is the supported way to run it. From a clone of this repository:
+## Run with Docker Compose
 
 ```sh
+git clone https://github.com/bongo-devs/Kairo.git
+cd Kairo
 cp config.example.toml config.toml
-docker compose up -d
 ```
 
-Or without cloning, grab the config and the compose file first:
+Edit `config.toml` before starting the node. In particular, replace the sample password and enable the sources you want. Then run:
 
 ```sh
-curl -O https://raw.githubusercontent.com/bongo-devs/Kairo/main/config.example.toml
-curl -O https://raw.githubusercontent.com/bongo-devs/Kairo/main/docker-compose.yml
-cp config.example.toml config.toml
-docker compose up -d
+docker compose up -d --build
 ```
 
-The node serves port 2333 and reads `/app/config.toml`. Set `KAIRO_CONFIG` to read it from
-somewhere else, and `PORT` to override `server.port` — handy when several instances share one
-config file.
+Compose exposes port `2333`, mounts `config.toml` read-only, and sets the soft and hard `nofile` limits to `65536`. Keep this limit for a high-concurrency deployment. View container output with `docker compose logs -f`; optional file logging can use the mounted `./logs` directory.
+
+## Run the published image
+
+Download the example configuration, copy it, and update the password and source settings:
+
+```sh
+curl -fsSLO https://raw.githubusercontent.com/bongo-devs/Kairo/main/config.example.toml
+cp config.example.toml config.toml
+```
+
+Then start the image, mounting your configuration file:
+
+```sh
+docker run -d --name kairo --restart unless-stopped \
+  --ulimit nofile=65536:65536 \
+  -p 2333:2333 \
+  -v /absolute/path/config.toml:/app/config.toml:ro \
+  ghcr.io/bongo-devs/kairo:latest
+```
+
+## Connect a client
+
+Point your Lavalink-compatible client to `http://<host>:2333` and use the password from `lavalink.server.password`. For a quick check, request the node info endpoint:
+
+```sh
+curl -H 'Authorization: your-password' http://localhost:2333/v4/info
+```
 
 ## Configuration
 
-Every key is documented inline in [`config.example.toml`](config.example.toml). The blocks:
+[`config.example.toml`](config.example.toml) documents every setting. Kairo reads the config path from the first command-line argument, then `KAIRO_CONFIG`, then `config.toml`. The `PORT` environment variable overrides `server.port`.
 
-- `server`, `lavalink.server`: the listener, the client password, the frame buffer, the filters.
-- `sources`: which platforms are enabled, and their limits and credentials. A source that only
-  resolves metadata plays through `sources.mirror`.
-- `lyrics`: the providers to query. Disabled leaves the lyrics endpoints unmounted.
-- `logging`: level, per-module overrides, format, and optional rolling file output.
-- `metrics.prometheus`: off until configured.
+Most platform sources are disabled by default; the generic HTTP source is enabled. Spotify and other metadata-only sources need a playable provider configured under `sources.mirror.providers`. See the [source catalog and provider notes](https://github.com/bongo-devs/sources#sources) for supported sources, limits, and credentials.
 
-Every block is optional and falls back to its own defaults. All endpoints except the Prometheus one
-require the configured password in the `Authorization` header.
+The optional [yt-cipher](https://github.com/bongo-devs/yt-cipher) service supports YouTube client paths that need signature resolution or PO tokens. [keys-api](https://github.com/bongo-devs/keys-api) can provide shared credentials for supported sources. Both are configured in `config.toml` and are only needed for those integrations.
 
-### Companion services
+## Build and test
 
-- yt-cipher, <https://github.com/bongo-devs/yt-cipher>, solves the signature cipher and mints the
-  poTokens SABR playback needs. Configured under `sources.youtube.remoteCipher`. Use this fork
-  rather than the upstream project, which exposes different endpoint names.
-- keys-api, <https://github.com/bongo-devs/keys-api>, is a shared credential store for the Deezer
-  `arl`, YouTube OAuth tokens and cookies. Configured under `sources.keysApi`, and sources take
-  their credentials from there instead of the config file. Optional for Deezer, which otherwise
-  rotates the ARLs listed in `sources.deezer.arls`, and for YouTube OAuth. A YouTube cookie jar
-  comes from here only.
+With a stable Rust toolchain and native build tools installed:
 
-## Credits
+```sh
+cargo build --release --locked --bin kairo
+cargo test --locked
+```
 
-The REST API, the WebSocket events and the encoded track format are those of
-[Lavalink](https://github.com/lavalink-devs/Lavalink) by Freya Arbjerg and its contributors, which
-defines the v4 protocol this node implements and which every compatible client was written against.
-Lavalink is MIT licensed; its notice is reproduced in [LICENSE](LICENSE).
+The Prometheus endpoint is disabled by default; when enabled, it is served at `/metrics` unless configured otherwise.
 
 ## License
 
-MIT. See [LICENSE](LICENSE), which also carries the third-party notice for Lavalink.
+Kairo is MIT licensed. See [LICENSE](LICENSE), which includes the third-party notice for the Lavalink protocol implementation.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=bongo-devs/Kairo&type=date&legend=top-left)](https://www.star-history.com/?type=date&legend=top-left&repos=bongo-devs/Kairo)
