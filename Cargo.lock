@@ -2846,8 +2846,8 @@ dependencies = [
 
 [[package]]
 name = "sources"
-version = "0.1.29"
-source = "git+https://github.com/bongo-devs/sources?tag=v0.1.29#458b8b629022bd44f0b6471e86b6e96eb0fd28ef"
+version = "0.1.30"
+source = "git+https://github.com/bongo-devs/sources?tag=v0.1.30#e5b405ec197c627dccc1b4265538d0a23271c12d"
 dependencies = [
  "aes",
  "base64 0.22.1",
