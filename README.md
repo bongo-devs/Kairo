@@ -75,7 +75,7 @@ The Prometheus endpoint is disabled by default; when enabled, it is served at `/
 
 ## License
 
-Kairo is MIT licensed. See [LICENSE](LICENSE), which includes the third-party notice for the Lavalink protocol implementation.
+Kairo is MIT licensed; see [LICENSE](LICENSE). The Lavalink protocol notice is in [NOTICES.md](NOTICES.md).
 
 ## Star History
 
