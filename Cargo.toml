@@ -9,7 +9,6 @@ description = "Standalone Discord audio sending node, written in Rust. Drop-in L
 bytes = "1"
 futures-util = "0.3"
 libc = "0.2"
-mimalloc = "0.1.52"
 perf_monitor = "0.2.1"
 rand = "0.8"
 semver = "1"
@@ -40,6 +39,10 @@ version = "0.12"
 default-features = false
 features = ["rustls-tls", "json"]
 
+[dependencies.mimalloc]
+version = "0.1.48"
+features = ["v3"]
+
 [dependencies.tokio]
 version = "1.53"
 features = ["tracing", "macros", "signal", "rt-multi-thread"]
@@ -63,7 +66,7 @@ version = "0.1"
 features = ["server-auto", "tokio"]
 
 [dependencies.libmimalloc-sys]
-version = "0.1.49"
+version = "=0.1.44"
 features = ["extended"]
 
 [dependencies.rustls]
