@@ -79,4 +79,10 @@ Kairo is MIT licensed. See [LICENSE](LICENSE), which includes the third-party no
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=bongo-devs/Kairo&type=date&legend=top-left)](https://www.star-history.com/?type=date&legend=top-left&repos=bongo-devs/Kairo)
+<a href="https://www.star-history.com/?type=date&legend=top-left&repos=bongo-devs%2FKairo">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=bongo-devs/Kairo&type=date&theme=dark&legend=top-left" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=bongo-devs/Kairo&type=date&legend=top-left" />
+    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=bongo-devs/Kairo&type=date&theme=dark&legend=top-left" />
+  </picture>
+</a>
