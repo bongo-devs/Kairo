@@ -6,6 +6,7 @@ use std::sync::{LazyLock, Mutex};
 use std::time::Duration;
 
 use tokio::task::JoinHandle;
+use tokio::time::MissedTickBehavior;
 
 /// The process-wide task registry.
 pub static TASKS: LazyLock<Tasks> = LazyLock::new(Tasks::default);
@@ -22,16 +23,39 @@ pub struct Tasks {
 }
 
 impl Tasks {
-    /// Run `handler` every `period`, aborting whatever was registered under `key` before.
-    pub fn add<F, Fut>(&self, key: impl Into<String>, period: Duration, mut handler: F)
+    /// Run `handler` every `period` (a slow run pushes the next tick out), replacing any task
+    /// registered under `key`.
+    pub fn add<F, Fut>(&self, key: impl Into<String>, period: Duration, handler: F)
     where
         F: FnMut() -> Fut + Send + 'static,
         Fut: Future<Output = ()> + Send + 'static,
     {
-        let key = key.into();
+        self.spawn(key.into(), period, MissedTickBehavior::Delay, handler);
+    }
+
+    /// Run `handler` on a fixed-rate grid: missed ticks fire immediately instead of pushing the
+    /// schedule out.
+    pub fn add_fixed_rate<F, Fut>(&self, key: impl Into<String>, period: Duration, handler: F)
+    where
+        F: FnMut() -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
+    {
+        self.spawn(key.into(), period, MissedTickBehavior::Burst, handler);
+    }
+
+    fn spawn<F, Fut>(
+        &self,
+        key: String,
+        period: Duration,
+        behavior: MissedTickBehavior,
+        mut handler: F,
+    ) where
+        F: FnMut() -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
+    {
         let runner = tokio::spawn(async move {
             let mut interval = tokio::time::interval(period);
-            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+            interval.set_missed_tick_behavior(behavior);
             loop {
                 interval.tick().await;
                 handler().await;

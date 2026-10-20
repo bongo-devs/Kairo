@@ -27,15 +27,6 @@ playerUpdateInterval = 5 # seconds between playerUpdate messages
 [lavalink.server.timeouts]
 connectTimeoutMs = 3000 # TCP+TLS connect timeout; 0 = OS default
 
-# Discord voice handshake throttling. A large bot reconnecting 1000+ guilds
-# at once would otherwise open that many simultaneous TLS+UDP handshakes and
-# starve search/playback HTTP. PATCH answers immediately; connects drain in
-# the background through maxConcurrentHandshakes slots.
-# [lavalink.server.voice]
-# maxConcurrentHandshakes = 32 # live handshakes; rest park (no worker) until a slot frees
-# queueWarnMs = 15000 # warn when a queued connect waits past this; the wait itself is unbounded
-# handshakeTimeoutMs = 30000 # outer bound per handshake; backstops the voice crate's own 30s abort
-# backgroundConnect = false # default; true answers PATCH immediately and connects async
 # Outbound IP rotation. Binds each request to an address from these CIDR blocks and
 # rotates away from rate-limited ones. A bare address counts as a /32 or /128.
 # [lavalink.server.ratelimit]
@@ -181,6 +172,47 @@ consumerSecret = "bd8a07e9f23fbe9d808646b730f89b8e"
 # Plays its own audio from the bcbits.com CDN.
 enabled = false
 searchLimit = 10
+
+[sources.instagram] # instagram.com/p/..., /reel/... and /reels/... public pages
+# Resolves public page metadata only; private and login-gated posts are unsupported.
+enabled = false
+
+[sources.audius] # audius.co track URLs + ausearch:
+# Uses Audius's public read API and streams accessible tracks.
+enabled = false
+allowSearch = true
+appName = "kairo"
+
+[sources.bilibili] # bilibili.com/video/BV... or /video/av... public pages
+# Progressive muxed MP4 only; separate DASH audio/video and multipart streams are unsupported.
+enabled = false
+
+[sources.reddit] # reddit.com comments URLs and redd.it post URLs
+# Direct public audio links only; Reddit segmented video is unsupported.
+enabled = false
+
+[sources.telegram] # t.me/<channel>/<message> public channel posts
+# Direct public media files only; private channels and manifests are unsupported.
+enabled = false
+
+[sources.tiktok] # tiktok.com/@user/video/<id> public video pages
+enabled = false
+
+[sources.twitter] # x.com/<user>/status/<id> public video posts
+enabled = false
+
+[sources.vimeo] # vimeo.com/<id> public video pages
+# Requires a public progressive MP4; private links and HLS-only videos are unsupported.
+enabled = false
+
+[sources.vkmusic] # vk.com/audio... URLs + vksearch:
+enabled = false
+allowSearch = false
+# accessToken = "" # explicitly supplied VK user token; required for track lookup/playback
+
+[sources.yandexmusic] # music.yandex.ru/album/<id>/track/<id>
+enabled = false
+# token = "" # explicitly supplied OAuth token; required for full playback
 
 [sources.tidal] # tidal.com URLs + tdsearch: / tdrec:
 # Metadata only since its streams are DRM-gated, plays through sources.mirror.

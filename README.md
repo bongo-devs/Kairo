@@ -37,7 +37,8 @@ docker compose up -d
 ```
 
 The node serves port 2333 and reads `/app/config.toml`. Set `KAIRO_CONFIG` to read it from
-somewhere else.
+somewhere else, and `PORT` to override `server.port` — handy when several instances share one
+config file.
 
 ## Configuration
 

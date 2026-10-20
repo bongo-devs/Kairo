@@ -22,10 +22,6 @@ use crate::protocol::message::Message;
 use crate::rest::error::RestError;
 use crate::session::SocketContext;
 
-/// Outbound channel capacity. Past this the client is not draining, so player updates and stats are
-/// dropped and events parked for resume (see `SocketContext::send_message`), bounding memory.
-const OUTBOUND_CAPACITY: usize = 1024;
-
 /// `GET /v4/websocket`, upgrade the connection once the handshake headers check out.
 pub async fn websocket_handler(
     State(state): State<AppState>,
@@ -81,7 +77,7 @@ async fn handle_socket(
     user_agent: Option<String>,
 ) {
     let (sink, stream) = socket.split();
-    let (sender, receiver) = mpsc::channel::<Message>(OUTBOUND_CAPACITY);
+    let (sender, receiver) = mpsc::unbounded_channel::<Message>();
 
     let (context, resumed, epoch, backlog) =
         attach(&state, requested_session.as_deref(), user_id, sender);
@@ -90,16 +86,19 @@ async fn handle_socket(
         log_new_connection(client_name, user_agent);
     }
 
-    // Couple the halves: whichever ends first aborts the other, so a dead write task tears the
-    // session down instead of leaving the read loop spinning while events pile up unread.
-    let write_task = tokio::spawn(sender::write_loop(sink, receiver, backlog));
+    // Both halves are one socket: whichever ends first stops the other.
+    let write_task = tokio::spawn(sender::write_loop(
+        sink,
+        receiver,
+        backlog,
+        context.session_id.clone(),
+    ));
     let read_task = tokio::spawn(receiver::read_loop(stream, context.session_id.clone()));
     let reason = supervise(read_task, write_task).await;
 
     tracing::debug!(
         session = %context.session_id,
         ?reason,
-        dropped_updates = context.dropped_updates(),
         "websocket closing"
     );
     on_disconnect(&state, context, epoch);
@@ -129,7 +128,7 @@ enum Ended {
     Write,
 }
 
-/// Run both halves until either ends, abort the other, and return which ended so teardown runs once.
+/// Run both halves until either ends, then stop the other.
 async fn supervise(mut read_task: JoinHandle<()>, mut write_task: JoinHandle<()>) -> Ended {
     tokio::select! {
         _ = &mut read_task => {
@@ -147,11 +146,10 @@ fn attach(
     state: &AppState,
     requested_session: Option<&str>,
     user_id: u64,
-    sender: mpsc::Sender<Message>,
+    sender: mpsc::UnboundedSender<Message>,
 ) -> (Arc<SocketContext>, bool, u64, Vec<Message>) {
     if let Some(id) = requested_session {
-        // `ready` leads the backlog so the write task flushes it ahead of the resume queue and the
-        // player updates, the order a client expects on resume.
+        // `ready` leads the backlog, ahead of the resume queue and the player updates.
         if let Some(context) = state.sockets().take_resumable(id) {
             let (epoch, queued) = context.resume_with(sender);
             let mut backlog = Vec::with_capacity(queued.len() + 1);

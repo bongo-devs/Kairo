@@ -13,7 +13,7 @@ pub use crossfade::{CrossfadeConfig, CrossfadeCurve};
 pub use filters::FiltersToggleConfig;
 pub use lavalink::{
     HttpConfig, LavalinkConfig, LavalinkServerConfig, RatelimitConfig, RatelimitStrategy,
-    ResamplingQuality, VoiceConfig,
+    ResamplingQuality,
 };
 pub use logging::{LogFileConfig, LogFormat, LogRotation, LoggingConfig, RequestLoggingConfig};
 pub use lyrics::LyricsServerConfig;
@@ -71,6 +71,7 @@ impl Config {
     /// Read the file named by the first argument, then `KAIRO_CONFIG`, then `config.toml`.
     ///
     /// Panics if the file cannot be read or parsed, since there is nothing to serve without it.
+    /// The `PORT` environment variable, when set, overrides the file's `server.port`.
     pub fn new() -> Self {
         let path = std::env::args()
             .nth(1)
@@ -78,8 +79,10 @@ impl Config {
             .unwrap_or_else(|| DEFAULT_CONFIG.to_string());
         let content = std::fs::read_to_string(&path)
             .unwrap_or_else(|e| panic!("Failed to read config '{}': {}", path, e));
-        Self::from_toml(&content)
-            .unwrap_or_else(|e| panic!("Failed to parse config '{}': {}", path, e))
+        let mut config = Self::from_toml(&content)
+            .unwrap_or_else(|e| panic!("Failed to parse config '{}': {}", path, e));
+        config.set_port(std::env::var("PORT").ok().as_deref());
+        config
     }
 
     fn from_toml(content: &str) -> Result<Self, toml::de::Error> {
@@ -87,6 +90,17 @@ impl Config {
             warn_unknown_sections(table.keys().map(String::as_str));
         }
         toml::from_str(content)
+    }
+
+    // `PORT` is the container convention: it lets several instances share one config file and
+    // differ only in the port they bind. Parsed separately from the env read so it stays testable.
+    fn set_port(&mut self, port: Option<&str>) {
+        let Some(port) = port else {
+            return;
+        };
+        self.server.port = port.parse().unwrap_or_else(|_| {
+            panic!("Invalid PORT '{}': expected a number from 0 to 65535", port)
+        });
     }
 
     /// Build the engine-wide [`AudioConfiguration`] from these settings.
@@ -121,5 +135,27 @@ mod tests {
         let cfg = Config::from_toml("").expect("an empty config is all defaults");
         assert_eq!(cfg.server.port, 2333);
         assert_eq!(cfg.lavalink.server.player_update_interval, 5);
+    }
+
+    #[test]
+    fn port_override_wins_over_the_file_value() {
+        let mut cfg = Config::from_toml("[server]\nport = 2333\n").expect("valid server block");
+        cfg.set_port(Some("2334"));
+        assert_eq!(cfg.server.port, 2334);
+    }
+
+    #[test]
+    fn absent_port_override_leaves_the_file_value() {
+        let mut cfg = Config::from_toml("[server]\nport = 2334\n").expect("valid server block");
+        cfg.set_port(None);
+        assert_eq!(cfg.server.port, 2334);
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid PORT 'nope'")]
+    fn port_override_must_be_a_number() {
+        Config::from_toml("")
+            .expect("an empty config is all defaults")
+            .set_port(Some("nope"));
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "kairo"
-version = "4.8.4"
+version = "4.8.5"
 edition = "2021"
 license = "MIT"
 description = "Standalone Discord audio sending node, written in Rust. Drop-in Lavalink v4 compatible."
@@ -9,7 +9,6 @@ description = "Standalone Discord audio sending node, written in Rust. Drop-in L
 bytes = "1"
 futures-util = "0.3"
 libc = "0.2"
-mimalloc = "0.1.52"
 perf_monitor = "0.2.1"
 rand = "0.8"
 semver = "1"
@@ -21,24 +20,28 @@ tracing-appender = "0.2"
 
 [dependencies.lyrics]
 git = "https://github.com/bongo-devs/lyrics"
-tag = "v0.2.8"
+tag = "v0.2.9"
 
 [dependencies.player]
 git = "https://github.com/bongo-devs/player"
-tag = "v0.1.9"
+tag = "v0.1.11"
 
 [dependencies.sources]
 git = "https://github.com/bongo-devs/sources"
-tag = "v0.1.26"
+tag = "v0.1.30"
 
 [dependencies.voice]
 git = "https://github.com/bongo-devs/voice"
-tag = "v0.1.4"
+tag = "v0.1.10"
 
 [dependencies.reqwest]
 version = "0.12"
 default-features = false
 features = ["rustls-tls", "json"]
+
+[dependencies.mimalloc]
+version = "0.1.48"
+features = ["v3"]
 
 [dependencies.tokio]
 version = "1.53"
@@ -63,7 +66,7 @@ version = "0.1"
 features = ["server-auto", "tokio"]
 
 [dependencies.libmimalloc-sys]
-version = "0.1.49"
+version = "=0.1.44"
 features = ["extended"]
 
 [dependencies.rustls]
@@ -78,6 +81,9 @@ features = ["derive"]
 [dependencies.tracing-subscriber]
 version = "0.3"
 features = ["env-filter", "json", "chrono"]
+
+[dev-dependencies]
+tokio = { version = "1.53", features = ["test-util"] }
 
 [profile.release]
 lto = "thin"

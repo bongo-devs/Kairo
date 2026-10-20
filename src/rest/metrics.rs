@@ -85,82 +85,8 @@ fn render(stats: &Stats) -> String {
         &format!("{cpu_help} (LL Load)"),
         stats.cpu.lavalink_load,
     );
-    voice_gate_metrics(&mut out);
     runtime_metrics(&mut out);
     out
-}
-
-// Voice-handshake gate families (`kairo_voice_*`). Counters are monotonic;
-// the wait/handshake distributions are histograms so `histogram_quantile`
-// works without the lossy lifetime averages in logs.
-fn voice_gate_metrics(out: &mut String) {
-    let gate = crate::session::voice_gate::metrics();
-    counter(
-        out,
-        "kairo_voice_handshakes_total",
-        "Total voice handshakes admitted by the gate.",
-        gate.total_acquired as f64,
-    );
-    counter(
-        out,
-        "kairo_voice_handshake_queue_timeouts_total",
-        "Foreground gate acquires that hit the queue wait (background storm path waits unbounded instead).",
-        gate.total_timed_out as f64,
-    );
-    counter(
-        out,
-        "kairo_voice_handshake_success_total",
-        "Background connects that committed a live connection.",
-        gate.total_success as f64,
-    );
-    counter(
-        out,
-        "kairo_voice_handshake_timeout_total",
-        "Background connects that exhausted retries on handshake timeout.",
-        gate.total_handshake_timeout as f64,
-    );
-    counter(
-        out,
-        "kairo_voice_handshake_error_total",
-        "Background connects that exhausted retries on handshake error.",
-        gate.total_handshake_error as f64,
-    );
-    counter(
-        out,
-        "kairo_voice_handshake_stale_dropped_total",
-        "Finished handshakes dropped because a newer PATCH claimed the guild.",
-        gate.total_stale_dropped as f64,
-    );
-    counter(
-        out,
-        "kairo_voice_handshake_retries_total",
-        "Retry attempts past the first handshake attempt.",
-        gate.total_retries as f64,
-    );
-    gauge(
-        out,
-        "kairo_voice_handshakes_in_flight",
-        "Voice handshakes currently holding a gate permit.",
-        gate.in_flight as f64,
-    );
-    gauge(
-        out,
-        "kairo_voice_handshake_queue_waiting",
-        "Voice connects currently parked in the gate queue.",
-        gate.waiting as f64,
-    );
-    histogram_ms(
-        out,
-        "kairo_voice_queue_wait",
-        "Gate queue wait distribution in milliseconds.",
-        &crate::session::voice_gate::wait_histogram(),
-    );
-    histogram_ms(
-        out,
-        "kairo_voice_handshake_duration",
-        "Handshake permit-hold distribution in milliseconds.",
-        &crate::session::voice_gate::handshake_histogram(),
-    );
 }
 
 // Tokio runtime families (`kairo_runtime_*`), stable metrics only: per-worker
@@ -213,33 +139,4 @@ fn gauge(out: &mut String, name: &str, help: &str, value: f64) {
     let _ = writeln!(out, "# HELP {name} {help}");
     let _ = writeln!(out, "# TYPE {name} gauge");
     let _ = writeln!(out, "{name} {value}");
-}
-
-// Append one counter family.
-fn counter(out: &mut String, name: &str, help: &str, value: f64) {
-    let _ = writeln!(out, "# HELP {name} {help}");
-    let _ = writeln!(out, "# TYPE {name} counter");
-    let _ = writeln!(out, "{name} {value}");
-}
-
-// Append one histogram family (cumulative buckets, `+Inf`, count, sum) from
-// `voice_gate` bucket data. Bucket bounds and observations are milliseconds.
-fn histogram_ms(
-    out: &mut String,
-    name: &str,
-    help: &str,
-    data: &crate::session::voice_gate::HistogramData,
-) {
-    let _ = writeln!(out, "# HELP {name} {help}");
-    let _ = writeln!(out, "# TYPE {name} histogram");
-    let mut cumulative = 0u64;
-    for (bound, count) in data.buckets.iter().zip(data.counts.iter()) {
-        cumulative += count;
-        let _ = writeln!(out, "{name}_bucket{{le=\"{bound}\"}} {cumulative}");
-    }
-    // Any observation past the last bound plus the explicit trailing slot.
-    cumulative += data.counts.get(data.buckets.len()).copied().unwrap_or(0);
-    let _ = writeln!(out, "{name}_bucket{{le=\"+Inf\"}} {cumulative}");
-    let _ = writeln!(out, "{name}_count {}", data.total);
-    let _ = writeln!(out, "{name}_sum {}", data.sum_ms);
 }
