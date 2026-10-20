@@ -88,18 +88,19 @@ pub struct Exception {
     pub severity: Severity,
     /// The technical cause.
     pub cause: String,
-    /// The cause stack trace, which may be the same text as `cause`.
+    /// The captured Rust backtrace for the exception.
     pub cause_stack_trace: String,
 }
 
 impl Exception {
     pub fn from_friendly(error: &player::FriendlyException) -> Self {
-        let cause = error.cause.clone().unwrap_or_else(|| error.message.clone());
+        let cause = error.cause.clone().unwrap_or_else(|| error.to_string());
+        let cause_stack_trace = error.cause_stack_trace.clone();
         Self {
             message: Some(error.message.clone()),
             severity: Severity::from_player(error.severity),
-            cause: cause.clone(),
-            cause_stack_trace: cause,
+            cause,
+            cause_stack_trace,
         }
     }
 }
