@@ -184,7 +184,7 @@ allowSearch = true
 appName = "kairo"
 
 [sources.bilibili] # bilibili.com/video/BV... or /video/av... public pages
-# Progressive muxed MP4 only; separate DASH audio/video and multipart streams are unsupported.
+# Plays the audio-only DASH track, or a single muxed MP4; multipart streams are unsupported.
 enabled = false
 
 [sources.reddit] # reddit.com comments URLs and redd.it post URLs
