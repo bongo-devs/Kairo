@@ -174,7 +174,7 @@ enabled = false
 searchLimit = 10
 
 [sources.instagram] # instagram.com/p/..., /reel/... and /reels/... public pages
-# Resolves public page metadata only; private and login-gated posts are unsupported.
+# Resolves public posts through Instagram's logged-out media API; private and login-gated posts are unsupported.
 enabled = false
 
 [sources.audius] # audius.co track URLs + ausearch:
