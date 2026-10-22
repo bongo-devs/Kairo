@@ -2112,7 +2112,7 @@ dependencies = [
 [[package]]
 name = "player"
 version = "0.1.11"
-source = "git+https://github.com/bongo-devs/player?tag=v0.1.11#877ac4f31f2df0c661f298c3ef2fb1a2a6518918"
+source = "git+https://github.com/bongodevs/player?tag=v0.1.11#877ac4f31f2df0c661f298c3ef2fb1a2a6518918"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -2877,7 +2877,7 @@ dependencies = [
  "hmac",
  "md-5",
  "percent-encoding",
- "player 0.1.11 (git+https://github.com/bongo-devs/player?tag=v0.1.11)",
+ "player 0.1.11 (git+https://github.com/bongodevs/player?tag=v0.1.11)",
  "rand 0.8.8",
  "regex",
  "serde",
