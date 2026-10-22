@@ -1,6 +1,6 @@
 services:
   kairo:
-    image: ghcr.io/bongo-devs/kairo:latest
+    image: ghcr.io/bongodevs/kairo:latest
     container_name: kairo
     restart: unless-stopped
     ports:

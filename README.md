@@ -1,14 +1,14 @@
 # Kairo
 
-[![CI](https://img.shields.io/github/actions/workflow/status/bongo-devs/Kairo/rust.yml?branch=main&label=CI&style=for-the-badge&logo=githubactions)](https://github.com/bongo-devs/Kairo/actions/workflows/rust.yml)
-[![Latest tag](https://img.shields.io/github/v/tag/bongo-devs/Kairo?sort=semver&style=for-the-badge&logo=git)](https://github.com/bongo-devs/Kairo/releases)
-[![License](https://img.shields.io/github/license/bongo-devs/Kairo?style=for-the-badge)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/bongodevs/Kairo/rust.yml?branch=main&label=CI&style=for-the-badge&logo=githubactions)](https://github.com/bongodevs/Kairo/actions/workflows/rust.yml)
+[![Latest tag](https://img.shields.io/github/v/tag/bongodevs/Kairo?sort=semver&style=for-the-badge&logo=git)](https://github.com/bongodevs/Kairo/releases)
+[![License](https://img.shields.io/github/license/bongodevs/Kairo?style=for-the-badge)](LICENSE)
 
 Kairo is a Rust-based audio node for Discord bots. It implements the Lavalink v4 REST and WebSocket protocol, so existing Lavalink-compatible clients can connect using the node’s address and password.
 
 - Audio sources, filters, crossfade, lyrics, and optional Prometheus metrics
-- Docker image: `ghcr.io/bongo-devs/kairo`
-- [Latest release binaries for Linux, macOS, and Windows](https://github.com/bongo-devs/Kairo/releases/latest)
+- Docker image: `ghcr.io/bongodevs/kairo`
+- [Latest release binaries for Linux, macOS, and Windows](https://github.com/bongodevs/Kairo/releases/latest)
 
 ## Why this exists
 
@@ -23,7 +23,7 @@ Kairo isn't here to replace Lavalink. It's simply our own take on the problem, b
 This Compose setup uses the published GHCR image; it does not build Kairo from source.
 
 ```sh
-git clone https://github.com/bongo-devs/Kairo.git
+git clone https://github.com/bongodevs/Kairo.git
 cd Kairo
 cp config.example.toml config.toml
 ```
@@ -41,7 +41,7 @@ Compose exposes port `2333`, mounts `config.toml` read-only, and sets the soft a
 Download the example configuration, copy it, and update the password and source settings:
 
 ```sh
-curl -fsSLO https://raw.githubusercontent.com/bongo-devs/Kairo/main/config.example.toml
+curl -fsSLO https://raw.githubusercontent.com/bongodevs/Kairo/main/config.example.toml
 cp config.example.toml config.toml
 ```
 
@@ -52,7 +52,7 @@ docker run -d --name kairo --restart unless-stopped \
   --ulimit nofile=65536:65536 \
   -p 2333:2333 \
   -v /absolute/path/config.toml:/app/config.toml:ro \
-  ghcr.io/bongo-devs/kairo:latest
+  ghcr.io/bongodevs/kairo:latest
 ```
 
 ## Connect a client
@@ -67,13 +67,13 @@ curl -H 'Authorization: your-password' http://localhost:2333/v4/info
 
 [`config.example.toml`](config.example.toml) documents every setting. Kairo reads the config path from the first command-line argument, then `KAIRO_CONFIG`, then `config.toml`. The `PORT` environment variable overrides `server.port`.
 
-Most platform sources are disabled by default; the generic HTTP source is enabled. Spotify and other metadata-only sources need a playable provider configured under `sources.mirror.providers`. See the [source catalog and provider notes](https://github.com/bongo-devs/sources#sources) for supported sources, limits, and credentials.
+Most platform sources are disabled by default; the generic HTTP source is enabled. Spotify and other metadata-only sources need a playable provider configured under `sources.mirror.providers`. See the [source catalog and provider notes](https://github.com/bongodevs/sources#sources) for supported sources, limits, and credentials.
 
-The optional [yt-cipher](https://github.com/bongo-devs/yt-cipher) service supports YouTube client paths that need signature resolution or PO tokens. [keys-api](https://github.com/bongo-devs/keys-api) can provide shared credentials for supported sources. Both are configured in `config.toml` and are only needed for those integrations.
+The optional [yt-cipher](https://github.com/bongodevs/yt-cipher) service supports YouTube client paths that need signature resolution or PO tokens. [keys-api](https://github.com/bongodevs/keys-api) can provide shared credentials for supported sources. Both are configured in `config.toml` and are only needed for those integrations.
 
 ## Build from source
 
-Building from source requires access to the private `bongo-devs/lyrics`, `bongo-devs/player`, and `bongo-devs/sources` repositories referenced by `Cargo.toml`. Without access, Cargo cannot fetch those dependencies, so use the published Docker image or release binaries instead. If you have access and a stable Rust toolchain with native build tools installed:
+Building from source requires access to the private `bongodevs/lyrics`, `bongodevs/player`, and `bongodevs/sources` repositories referenced by `Cargo.toml`. Without access, Cargo cannot fetch those dependencies, so use the published Docker image or release binaries instead. If you have access and a stable Rust toolchain with native build tools installed:
 
 ```sh
 cargo build --release --locked --bin kairo
@@ -88,10 +88,10 @@ Kairo is MIT licensed; see [LICENSE](LICENSE). The Lavalink protocol notice is i
 
 ## Star History
 
-<a href="https://www.star-history.com/?type=date&legend=top-left&repos=bongo-devs%2FKairo">
+<a href="https://www.star-history.com/?type=date&legend=top-left&repos=bongodevs%2FKairo">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=bongo-devs/Kairo&type=date&theme=dark&legend=top-left" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=bongo-devs/Kairo&type=date&legend=top-left" />
-    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=bongo-devs/Kairo&type=date&theme=dark&legend=top-left" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=bongodevs/Kairo&type=date&theme=dark&legend=top-left" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=bongodevs/Kairo&type=date&legend=top-left" />
+    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=bongodevs/Kairo&type=date&theme=dark&legend=top-left" />
   </picture>
 </a>

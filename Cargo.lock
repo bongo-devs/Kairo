@@ -1423,7 +1423,7 @@ dependencies = [
  "lyrics",
  "mimalloc",
  "perf_monitor",
- "player",
+ "player 0.1.11 (git+https://github.com/bongodevs/player?tag=v0.1.11)",
  "rand 0.8.8",
  "reqwest",
  "rustls",
@@ -1731,7 +1731,7 @@ checksum = "4050469837a6ff301cd14c1f8f24f88549e6d548f24f64e2148eb0f72cebc51f"
 [[package]]
 name = "lyrics"
 version = "0.2.9"
-source = "git+https://github.com/bongo-devs/lyrics?tag=v0.2.9#6d0ff1688ab48a6872d8fe225deb14ca891c540a"
+source = "git+https://github.com/bongodevs/lyrics?tag=v0.2.9#6d0ff1688ab48a6872d8fe225deb14ca891c540a"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -2113,6 +2113,26 @@ dependencies = [
 name = "player"
 version = "0.1.11"
 source = "git+https://github.com/bongo-devs/player?tag=v0.1.11#877ac4f31f2df0c661f298c3ef2fb1a2a6518918"
+dependencies = [
+ "aes",
+ "base64 0.22.1",
+ "bytes",
+ "cbc",
+ "opus-rs",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "symphonia",
+ "symphonia-core",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "player"
+version = "0.1.11"
+source = "git+https://github.com/bongodevs/player?tag=v0.1.11#877ac4f31f2df0c661f298c3ef2fb1a2a6518918"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -2847,7 +2867,7 @@ dependencies = [
 [[package]]
 name = "sources"
 version = "0.1.30"
-source = "git+https://github.com/bongo-devs/sources?tag=v0.1.30#e5b405ec197c627dccc1b4265538d0a23271c12d"
+source = "git+https://github.com/bongodevs/sources?tag=v0.1.30#e5b405ec197c627dccc1b4265538d0a23271c12d"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -2857,7 +2877,7 @@ dependencies = [
  "hmac",
  "md-5",
  "percent-encoding",
- "player",
+ "player 0.1.11 (git+https://github.com/bongo-devs/player?tag=v0.1.11)",
  "rand 0.8.8",
  "regex",
  "serde",
@@ -3628,7 +3648,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "voice"
 version = "0.1.10"
-source = "git+https://github.com/bongo-devs/voice?tag=v0.1.10#c5ab04e51326eed67f0c08ce34e5ddf282530764"
+source = "git+https://github.com/bongodevs/voice?tag=v0.1.10#c5ab04e51326eed67f0c08ce34e5ddf282530764"
 dependencies = [
  "aes-gcm",
  "bytes",

@@ -8,8 +8,8 @@ use serde::Deserialize;
 use crate::config::{LogFormat, LoggingConfig};
 use crate::utils::ansi::{ACCENT, BOLD, DIM, RESET};
 
-const RELEASES_API: &str = "https://api.github.com/repos/bongo-devs/Kairo/releases/latest";
-const IMAGE: &str = "ghcr.io/bongo-devs/kairo:latest";
+const RELEASES_API: &str = "https://api.github.com/repos/bongodevs/Kairo/releases/latest";
+const IMAGE: &str = "ghcr.io/bongodevs/kairo:latest";
 const TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Deserialize)]

@@ -95,7 +95,7 @@ recommendationsLimit = 10
 playlistLoadLimit = 50
 albumLoadLimit = 50
 artistLoadLimit = 20 # top tracks per artist URL
-# apiUrl = "http://localhost:3000/" # github.com/bongo-devs/jiosaavn-proxy-api, removes the proxy requirement
+# apiUrl = "http://localhost:3000/" # github.com/bongodevs/jiosaavn-proxy-api, removes the proxy requirement
 # an Indian proxy for geo-restricted content, unless apiUrl is set
 # [sources.jiosaavn.proxy]
 # url = "http://indian-proxy:8080"
