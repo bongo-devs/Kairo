@@ -1,0 +1,12 @@
+[submodule "crates/lyrics"]
+	path = crates/lyrics
+	url = https://github.com/bongodevs/lyrics.git
+[submodule "crates/player"]
+	path = crates/player
+	url = https://github.com/bongodevs/player.git
+[submodule "crates/sources"]
+	path = crates/sources
+	url = https://github.com/bongodevs/sources.git
+[submodule "crates/voice"]
+	path = crates/voice
+	url = https://github.com/bongodevs/voice.git

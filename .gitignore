@@ -1,7 +1,6 @@
 /target
 config.toml
 logs/
-crates/
-extra/
 graphify-out/
 CLAUDE.md
+.cargo/*
