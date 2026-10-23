@@ -187,8 +187,8 @@ appName = "kairo"
 # Plays the audio-only DASH track, or a single muxed MP4; multipart streams are unsupported.
 enabled = false
 
-[sources.reddit] # reddit.com comments URLs and redd.it post URLs
-# Direct public audio links only; Reddit segmented video is unsupported.
+[sources.reddit] # reddit.com post and share URLs, plus redd.it short links
+# Plays direct public audio, or the audio rendition of a Reddit-hosted video.
 enabled = false
 
 [sources.telegram] # t.me/<channel>/<message> public channel posts
@@ -196,6 +196,10 @@ enabled = false
 enabled = false
 
 [sources.tiktok] # tiktok.com/@user/video/<id> public video pages
+# TikTok's web player is unavailable from some regions and redirects to a notice page.
+# Route this source through a proxy in a supported region if links fail to resolve.
+# [sources.tiktok.proxy]
+# url = "http://host:3128"
 enabled = false
 
 [sources.twitter] # x.com/<user>/status/<id> public video posts

@@ -86,7 +86,9 @@ impl Filters {
         names
     }
 
-    /// Convert into the engine's filter config. Plugin filters are ignored by the engine.
+    /// Convert into the engine's filter config. The player supports LavaDSPX's high-pass, low-pass,
+    /// normalization and echo filters; other plugin filter names remain on the wire type but are
+    /// ignored by the engine.
     ///
     /// Every engine field has a serde default, so a schema drift would reset the whole chain
     /// instead of failing anywhere visible. Hence the loud log.
@@ -354,5 +356,38 @@ mod tests {
             (0.7, 0.3, 0.2, 0.8)
         );
         assert_eq!(engine.low_pass.expect("lowPass").smoothing, 15.0);
+    }
+
+    #[test]
+    fn supported_plugin_filters_round_trip_to_engine() {
+        let filters: Filters = serde_json::from_value(serde_json::json!({
+            "pluginFilters": {
+                "high-pass": { "cutoffFrequency": 80 },
+                "low-pass": { "cutoffFrequency": 8_000 },
+                "normalization": { "maxAmplitude": 0.5 },
+                "echo": { "echoLength": 0.3, "decay": 0.5 }
+            }
+        }))
+        .expect("wire filter payload deserializes");
+        let engine = filters.to_engine();
+        let plugin_filters = engine.plugin_filters.expect("engine plugin filters");
+        assert_eq!(
+            plugin_filters
+                .high_pass
+                .expect("high-pass")
+                .cutoff_frequency,
+            80
+        );
+        assert_eq!(
+            plugin_filters.low_pass.expect("low-pass").cutoff_frequency,
+            8_000
+        );
+        assert!(
+            plugin_filters
+                .normalization
+                .expect("normalization")
+                .adaptive
+        );
+        assert_eq!(plugin_filters.echo.expect("echo").decay, 0.5);
     }
 }
